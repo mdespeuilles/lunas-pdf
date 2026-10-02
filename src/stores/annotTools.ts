@@ -50,7 +50,7 @@ export function paletteKeyOf(hex: string): PaletteKey | null {
 export const useAnnotTools = defineStore("annotTools", () => {
   const tool = ref<Tool>("select");
   /** Couleur choisie par famille d'outils (texte, marquage, formes…). */
-  const colors = ref<Record<string, PaletteKey>>({ highlight: "yellow", underline: "blue", strike: "red", text: "red", note: "yellow", shape: "red", check: "blue" });
+  const colors = ref<Record<string, PaletteKey>>({ highlight: "yellow", underline: "blue", strike: "red", text: "black", note: "yellow", shape: "red", check: "blue" });
   const width = ref(2);
   const font = ref<FontFamily>("sans");
   const size = ref(12);

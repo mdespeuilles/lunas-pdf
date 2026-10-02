@@ -170,3 +170,53 @@ test("tampon image (I) et Enregistrer sous", async ({ page }) => {
   await expect(page.getByRole("tab", { name: /copie\.pdf/ })).toBeVisible();
   expect(await calls(page)).toContain("save:/docs/copie.pdf");
 });
+
+test("zone de texte : noir par défaut, largeur ajustée au texte, une ligne = une ligne", async ({ page }) => {
+  await start(page);
+  await page.keyboard.press("t");
+  const box = (await page.locator(".page[data-page='0']").boundingBox())!;
+  const k = box.width / 595.28;
+  await page.mouse.click(box.x + 100 * k, box.y + 300 * k);
+  const editor = page.getByRole("textbox", { name: "Modifier le texte" });
+  await editor.fill("km");
+  const edit = page.locator(".ft-edit");
+  const w1 = (await edit.boundingBox())!.width;
+  await editor.fill("kilomètres parcourus depuis la souscription");
+  const w2 = (await edit.boundingBox())!.width;
+  expect(w2).toBeGreaterThan(w1 * 4);
+  await editor.fill("km");
+  expect((await edit.boundingBox())!.width).toBeCloseTo(w1, 0);
+  // Validation par clic ailleurs : la hauteur reste celle d'une ligne.
+  await page.mouse.click(box.x + 400 * k, box.y + 600 * k);
+  await expect.poll(async () => (await model(page)).find((a) => a.body.type === "freeText")?.body.text).toBe("km");
+  const ft = (await model(page)).find((a) => a.body.type === "freeText");
+  expect(ft.color).toBe("#1b1b20");
+  expect(ft.rect.h).toBeCloseTo(12 * 1.2 + 4, 1);
+  expect(ft.rect.w).toBeLessThan(30);
+});
+
+test("déplacement : le contenu suit la souris, puis réapparaît à sa place", async ({ page }) => {
+  await start(page);
+  await page.keyboard.press("r");
+  await drag(page, [300, 300], [400, 360]);
+  await expect.poll(async () => (await model(page)).filter((a) => a.body.type === "square").length).toBe(1);
+  await page.keyboard.press("v");
+  const box = (await page.locator(".page[data-page='0']").boundingBox())!;
+  const sq = (await model(page)).find((a) => a.body.type === "square");
+  const k = box.width / 595.28;
+  // Saisie sur le bord du rectangle, puis glisser de 100 px.
+  await page.mouse.move(box.x + (sq.rect.x + 1) * k, box.y + (sq.rect.y + 10) * k);
+  await page.mouse.down();
+  await page.mouse.move(box.x + (sq.rect.x + 1) * k + 50, box.y + (sq.rect.y + 10) * k, { steps: 3 });
+  await page.mouse.move(box.x + (sq.rect.x + 1) * k + 100, box.y + (sq.rect.y + 10) * k, { steps: 3 });
+  // Pendant le glisser : original masqué, aperçu présent.
+  await expect.poll(async () => (await model(page)).find((a) => a.body.type === "square").hidden).toBe(true);
+  await expect(page.locator(".page[data-page='0'] .alayer svg.box rect")).toHaveCount(1);
+  await page.mouse.up();
+  await expect.poll(async () => (await model(page)).find((a) => a.body.type === "square").rect.x).toBeCloseTo(sq.rect.x + 100 / k, 0);
+  expect((await model(page)).find((a) => a.body.type === "square").hidden).toBe(false);
+  // Annuler ne fait pas réapparaître l'état masqué.
+  await page.keyboard.press("Control+z");
+  await expect.poll(async () => (await model(page)).find((a) => a.body.type === "square").rect.x).toBeCloseTo(sq.rect.x, 0);
+  expect((await model(page)).find((a) => a.body.type === "square").hidden).toBe(false);
+});

@@ -75,12 +75,12 @@ function applyOps(list: Annot[], ops: AnnotOp[]): AnnotOp[] {
     } else if (op.op === "update") {
       const i = list.findIndex((x) => x.id === op.annot.id);
       if (i < 0) continue;
-      inv.push({ op: "update", annot: list[i] });
+      inv.push({ op: "update", annot: { ...list[i], hidden: false } });
       list[i] = { ...op.annot, modified: "D:20261002104300Z" };
     } else {
       const i = list.findIndex((x) => x.id === op.id);
       if (i < 0) continue;
-      inv.push({ op: "add", annot: list[i], index: i });
+      inv.push({ op: "add", annot: { ...list[i], hidden: false }, index: i });
       list.splice(i, 1);
     }
   }

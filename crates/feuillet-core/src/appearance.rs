@@ -157,6 +157,19 @@ pub fn wrap(text: &str, font: &FontSpec, size: f32, width: f32) -> Vec<Vec<u8>> 
 }
 
 pub const FREETEXT_PAD: f32 = 2.0;
+pub const FREETEXT_LEADING: f32 = 1.2;
+
+/// Distance (en em) entre le haut d'une ligne et sa ligne de base, calquée sur la boîte de
+/// ligne CSS de l'éditeur (`line-height: 1.2`, polices métriquement compatibles Liberation) :
+/// demi-interlignage + ascendante. Le texte ne bouge donc pas à la validation.
+pub fn first_baseline(font: FontFamily) -> f32 {
+    let (asc, desc) = match font {
+        FontFamily::Sans => (0.905, 0.212),
+        FontFamily::Serif => (0.891, 0.216),
+        FontFamily::Mono => (0.833, 0.300),
+    };
+    (FREETEXT_LEADING - (asc + desc)) / 2.0 + asc
+}
 
 /// `/Matrix` du formulaire d'apparence : repère local → espace utilisateur.
 pub fn form_matrix(to_display: &Affine) -> [f32; 6] {
@@ -229,8 +242,8 @@ pub fn build(annot: &Annot, to_display: &Affine, alloc: &mut Alloc, image: Optio
             let f = font_spec(*font);
             res.set("Font", dictionary! { f.res => alloc(font_dict(&f)) });
             let lines = wrap(text, &f, *size, (r.w - 2.0 * FREETEXT_PAD).max(1.0));
-            let leading = size * 1.2;
-            let first = r.h - FREETEXT_PAD - f.ascent / 1000.0 * size;
+            let leading = size * FREETEXT_LEADING;
+            let first = r.h - FREETEXT_PAD - first_baseline(*font) * size;
             o.op("/Tx BMC").op("q").re(0.0, 0.0, r.w, r.h).op("W n").op("BT");
             let _ = write!(o.0, "/{} ", f.res);
             o.n(*size)

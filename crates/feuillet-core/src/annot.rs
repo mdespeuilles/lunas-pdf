@@ -241,14 +241,17 @@ fn apply_ops(annots: &mut Vec<Annot>, ops: Vec<AnnotOp>) -> (Vec<AnnotOp>, Vec<u
                 };
                 pages.push(annot.page);
                 pages.push(annots[i].page);
-                let old = std::mem::replace(&mut annots[i], annot);
+                let mut old = std::mem::replace(&mut annots[i], annot);
+                // Le masquage d'édition en place ne fait jamais partie de l'historique.
+                old.hidden = false;
                 inverse.push(AnnotOp::Update { annot: old });
             }
             AnnotOp::Remove { id } => {
                 let Some(i) = annots.iter().position(|a| a.id == id) else {
                     continue;
                 };
-                let old = annots.remove(i);
+                let mut old = annots.remove(i);
+                old.hidden = false;
                 pages.push(old.page);
                 // Réinsertion à la même place pour conserver l'ordre d'affichage.
                 inverse.push(AnnotOp::Add {
@@ -314,6 +317,23 @@ mod tests {
         assert_eq!(list[0], moved);
         assert_eq!(list[1].id, "y");
         assert!(h.can_undo() && !h.can_redo());
+    }
+
+    #[test]
+    fn hidden_state_never_restored_by_undo() {
+        let mut h = History::default();
+        let mut hidden = a("x", 0);
+        hidden.hidden = true; // masquée pendant un glisser
+        let mut list = vec![hidden];
+        let mut moved = a("x", 0);
+        moved.rect.x = 40.0;
+        h.apply(&mut list, vec![AnnotOp::Update { annot: moved }]);
+        h.undo(&mut list);
+        assert!(!list[0].hidden && list[0].rect.x == 0.0);
+        list[0].hidden = true;
+        h.apply(&mut list, vec![AnnotOp::Remove { id: "x".into() }]);
+        h.undo(&mut list);
+        assert!(!list[0].hidden);
     }
 
     #[test]

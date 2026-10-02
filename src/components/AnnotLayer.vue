@@ -6,6 +6,8 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type { Annot, AnnotBody, Point, Rect } from "../bindings";
 import { commands, unwrap } from "../lib/api";
+import { FREETEXT_LEADING, FREETEXT_PAD, fitTextBox, wrap } from "../lib/afm";
+import AnnotPreview from "./AnnotPreview.vue";
 import {
   BOX_HANDLES, type Handle, canMove, canResize, handlePos, hitRects, moved, rectFrom, resized, snap45,
 } from "../lib/annot-geom";
@@ -111,12 +113,10 @@ function onLayerDown(e: PointerEvent) {
       // Le premier caractère commence au point cliqué (marge intérieure de 2 pt compensée),
       // centré verticalement sur la première ligne. Près du bord droit, la zone se rétrécit
       // au lieu de se décaler vers la gauche ; elle ne se décale qu'en deçà de 60 pt.
-      const PAD = 2;
-      const h = tools.size * 1.2 + 2 * PAD;
-      const x = Math.max(0, p.x - PAD);
-      const w = Math.max(Math.min(200, props.pageW - x), Math.min(60, props.pageW));
-      const rect = { x: Math.min(x, props.pageW - w), y: Math.min(Math.max(0, p.y - h / 2), props.pageH - h), w, h };
-      editing.value = { id: null, rect, text: "", font: tools.font, size: tools.size, color: colorFor(tools.colors.text, "text") };
+      const x0 = Math.max(0, p.x - FREETEXT_PAD);
+      const { w, h } = fitTextBox("", tools.font, tools.size, props.pageW - x0, t("annot.textPlaceholder"));
+      const rect = { x: Math.min(x0, Math.max(0, props.pageW - Math.max(w, 60))), y: Math.min(Math.max(0, p.y - h / 2), props.pageH - h), w, h };
+      editing.value = { id: null, rect, auto: true, text: "", font: tools.font, size: tools.size, color: colorFor(tools.colors.text, "text") };
       void nextTick(() => editor.value?.focus());
       return;
     }
@@ -190,6 +190,10 @@ interface Drag {
   start: Point;
   orig: Annot;
   preview: Annot;
+  /** Original masqué : l'aperçu le remplace pendant le glisser. */
+  hidden: boolean;
+  /** Découpe du rendu de la page (images et annotations externes). */
+  crop: string | null;
 }
 const drag = ref<Drag | null>(null);
 
@@ -200,7 +204,7 @@ function onHitDown(a: Annot, e: PointerEvent) {
   void commitEdit();
   props.tab.selected = a.id;
   if (!canMove(a)) return;
-  drag.value = { handle: "move", start: toPt(e), orig: a, preview: a };
+  drag.value = { handle: "move", start: toPt(e), orig: a, preview: a, hidden: false, crop: null };
   (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 }
 
@@ -209,14 +213,33 @@ function onHandleDown(h: Handle, e: PointerEvent) {
   if (!a) return;
   e.preventDefault();
   e.stopPropagation();
-  drag.value = { handle: h, start: toPt(e), orig: a, preview: a };
+  drag.value = { handle: h, start: toPt(e), orig: a, preview: a, hidden: false, crop: null };
   (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+}
+
+/** Image de l'annotation telle que rendue (pour celles dont l'aperçu ne se dessine pas). */
+function cropOf(a: Annot): string | null {
+  if (a.body.type !== "image" && a.body.type !== "other") return null;
+  const c = layer.value?.parentElement?.querySelector<HTMLCanvasElement>("canvas.base");
+  if (!c || !c.width) return null;
+  const s = c.width / props.pageW;
+  const out = document.createElement("canvas");
+  out.width = Math.max(1, Math.round(a.rect.w * s));
+  out.height = Math.max(1, Math.round(a.rect.h * s));
+  out.getContext("2d")!.drawImage(c, a.rect.x * s, a.rect.y * s, out.width, out.height, 0, 0, out.width, out.height);
+  return out.toDataURL();
 }
 
 function onDragMove(e: PointerEvent) {
   const d = drag.value;
   if (!d) return;
   const p = toPt(e);
+  if (!d.hidden && Math.hypot(p.x - d.start.x, p.y - d.start.y) > 1) {
+    // Premier déplacement réel : l'aperçu remplace l'original.
+    d.hidden = true;
+    d.crop = cropOf(d.orig);
+    void tabs.setHidden(props.tab, d.orig.id, true);
+  }
   if (d.handle === "move") {
     const r = d.orig.rect;
     const dx = Math.min(Math.max(p.x - d.start.x, -r.x), props.pageW - r.x - r.w);
@@ -232,7 +255,8 @@ async function onDragUp() {
   if (!d) return;
   drag.value = null;
   const changed = JSON.stringify(d.preview) !== JSON.stringify(d.orig);
-  if (changed) await tabs.updateAnnot(props.tab, d.preview);
+  if (changed) await tabs.updateAnnot(props.tab, { ...d.preview, hidden: false });
+  else if (d.hidden) await tabs.setHidden(props.tab, d.orig.id, false);
 }
 
 const shown = computed(() => (drag.value ? drag.value.preview : selected.value));
@@ -259,6 +283,8 @@ function onHitClick(a: Annot) {
 interface Editing {
   id: string | null;
   rect: Rect;
+  /** Largeur ajustée au texte (sinon largeur fixée par l'utilisateur, le texte revient à la ligne). */
+  auto: boolean;
   text: string;
   font: "sans" | "serif" | "mono";
   size: number;
@@ -269,7 +295,9 @@ const editor = ref<HTMLTextAreaElement>();
 
 function startEdit(a: Annot) {
   if (a.body.type !== "freeText") return;
-  editing.value = { id: a.id, rect: { ...a.rect }, text: a.body.text, font: a.body.font, size: a.body.size, color: a.color };
+  // Largeur « automatique » si la zone a exactement la largeur de son texte.
+  const natural = fitTextBox(a.body.text, a.body.font, a.body.size, props.pageW - a.rect.x).w;
+  editing.value = { id: a.id, rect: { ...a.rect }, auto: Math.abs(natural - a.rect.w) < 1.5, text: a.body.text, font: a.body.font, size: a.body.size, color: a.color };
   void tabs.setHidden(props.tab, a.id, true);
   void nextTick(() => {
     editor.value?.focus();
@@ -277,13 +305,17 @@ function startEdit(a: Annot) {
   });
 }
 
-function autoGrow() {
-  const el = editor.value;
+/** Ajuste la zone à son texte avec les métriques du PDF (pas celles du navigateur). */
+function refit() {
   const ed = editing.value;
-  if (!el || !ed) return;
-  el.style.height = "auto";
-  ed.rect.h = Math.max(ed.size * 1.2 + 4, el.scrollHeight / props.k);
-  el.style.height = "";
+  if (!ed) return;
+  if (ed.auto) {
+    const { w, h } = fitTextBox(ed.text, ed.font, ed.size, props.pageW - ed.rect.x, t("annot.textPlaceholder"));
+    ed.rect = { ...ed.rect, w, h };
+  } else {
+    const lines = wrap(ed.text, ed.font, ed.size, ed.rect.w - 2 * FREETEXT_PAD).length;
+    ed.rect = { ...ed.rect, h: lines * ed.size * FREETEXT_LEADING + 2 * FREETEXT_PAD };
+  }
 }
 
 async function commitEdit(cancel = false) {
@@ -291,6 +323,11 @@ async function commitEdit(cancel = false) {
   if (!ed) return;
   editing.value = null;
   const text = ed.text.replace(/\s+$/, "");
+  // Dimensions finales : sans le texte indicatif ni les espaces de fin.
+  if (ed.auto) {
+    const { w, h } = fitTextBox(text, ed.font, ed.size, props.pageW - ed.rect.x);
+    ed.rect = { ...ed.rect, w, h };
+  }
   if (ed.id === null) {
     if (!cancel && text) {
       tools.tool = "select";
@@ -300,7 +337,7 @@ async function commitEdit(cancel = false) {
   }
   const a = (props.tab.edit?.annots ?? []).find((x) => x.id === ed.id);
   if (!a || a.body.type !== "freeText") return;
-  if (cancel || (text === a.body.text && ed.rect.h === a.rect.h)) {
+  if (cancel || (text === a.body.text && ed.rect.h === a.rect.h && ed.rect.w === a.rect.w)) {
     await tabs.setHidden(props.tab, a.id, false);
   } else if (!text) {
     await tabs.removeAnnot(props.tab, a.id);
@@ -364,7 +401,13 @@ function recolor(key: PaletteKey) {
 
 function setSize(size: number) {
   const a = selected.value;
-  if (a?.body.type === "freeText") void tabs.updateAnnot(props.tab, { ...a, rect: { ...a.rect, h: Math.max(a.rect.h, size * 1.2 + 4) }, body: { ...a.body, size } });
+  if (a?.body.type !== "freeText") return;
+  const { text, font } = a.body;
+  const maxW = props.pageW - a.rect.x;
+  const auto = Math.abs(fitTextBox(text, font, a.body.size, maxW).w - a.rect.w) < 1.5;
+  const lines = wrap(text, font, size, a.rect.w - 2 * FREETEXT_PAD).length;
+  const dims = auto ? fitTextBox(text, font, size, maxW) : { w: a.rect.w, h: lines * size * FREETEXT_LEADING + 2 * FREETEXT_PAD };
+  void tabs.updateAnnot(props.tab, { ...a, rect: { ...a.rect, ...dims }, body: { ...a.body, size } });
 }
 
 function setWidth(width: number) {
@@ -434,6 +477,9 @@ defineExpose({ duplicate, remove, startEdit });
       </template>
     </template>
 
+    <!-- Aperçu pendant le glisser (l'original est masqué) -->
+    <AnnotPreview v-if="drag?.hidden" :annot="drag.preview" :k="k" :crop="drag.crop" />
+
     <!-- Sélection : cadre et poignées -->
     <template v-if="interactive && shown">
       <svg v-if="shown.body.type === 'line'" class="sel-svg">
@@ -476,7 +522,7 @@ defineExpose({ duplicate, remove, startEdit });
         :placeholder="t('annot.textPlaceholder')"
         spellcheck="true"
         :style="{ fontFamily: FONT_CSS[editing.font], fontSize: editing.size * k + 'px', color: editing.color, padding: 2 * k + 'px', lineHeight: 1.2 }"
-        @input="autoGrow"
+        @input="refit"
         @blur="commitEdit()"
         @keydown="onEditorKey"
         @pointerdown.stop
@@ -526,7 +572,8 @@ defineExpose({ duplicate, remove, startEdit });
 <style scoped>
 .alayer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .alayer.creating { pointer-events: auto; cursor: crosshair; }
-.alayer.tool-text { cursor: text; }
+/* Outil zone de texte : « T » encadré, distinct du curseur en I de la sélection. */
+.alayer.tool-text { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='3' fill='white' stroke='%231b1b20' stroke-width='1.5'/%3E%3Cpath d='M7.5 7.5h9M12 7.5v9' stroke='%231b1b20' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") 12 12, crosshair; }
 .alayer.tool-note, .alayer.tool-check { cursor: copy; }
 .note-tip { position: absolute; pointer-events: auto; cursor: help; }
 .hit { position: absolute; pointer-events: auto; border-radius: 2px; cursor: pointer; }
@@ -547,7 +594,8 @@ defineExpose({ duplicate, remove, startEdit });
 .hd-e, .hd-w { cursor: ew-resize; }
 .hd-from, .hd-to { cursor: crosshair; border-radius: 50%; }
 .ft-edit { position: absolute; border: 1px dashed var(--accent); pointer-events: auto; }
-.ft-edit textarea { width: 100%; height: 100%; border: 0; resize: none; background: transparent; outline: none; overflow: hidden; box-sizing: border-box; display: block; white-space: pre-wrap; }
+.ft-edit textarea { width: 100%; height: 100%; border: 0; resize: none; background: transparent; outline: none; overflow: hidden; box-sizing: border-box; display: block; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.ft-edit textarea::placeholder { color: color-mix(in oklab, currentColor 45%, transparent); }
 .ft-edit textarea:focus-visible { box-shadow: none; }
 .note-pop { position: absolute; z-index: 9; width: 240px; padding: 8px; border-radius: 10px; background: #fff9db; color: #5c4400; box-shadow: 0 0 0 1px rgba(92, 68, 0, .18), var(--shadow); pointer-events: auto; font-family: system-ui, sans-serif; }
 .np-h { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
