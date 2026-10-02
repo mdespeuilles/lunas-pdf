@@ -316,3 +316,11 @@ pub fn system_locale() -> String {
 pub fn take_pending_files(pending: State<'_, PendingFiles>) -> Vec<String> {
     std::mem::take(&mut *pending.0.lock().unwrap())
 }
+
+/// Erreurs JavaScript de l'interface, recopiées dans le terminal (diagnostic sous WebKitGTK,
+/// dont la console n'est pas visible).
+#[tauri::command]
+#[specta::specta]
+pub fn log_frontend_error(message: String) {
+    eprintln!("[feuillet] erreur de l'interface : {message}");
+}

@@ -46,6 +46,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::clear_recents,
             commands::system_locale,
             commands::take_pending_files,
+            commands::log_frontend_error,
         ])
         .events(collect_events![OpenFilesEvent])
         // Les flottants transmis (géométrie) ne sont jamais NaN : `number` plutôt que `number | null`.
@@ -104,8 +105,10 @@ pub fn run() {
     let initial = file_args(std::env::args().skip(1), &cwd);
 
     let mut builder_app = tauri::Builder::default();
-    // Tests visuels : instance indépendante d'un Feuillet déjà ouvert.
-    if std::env::var_os("FEUILLET_NO_SINGLE_INSTANCE").is_none() {
+    // Instance unique : seulement en version publiée. En développement, une instance déjà
+    // ouverte (version installée, autre `tauri dev`) capturerait le lancement et la nouvelle
+    // instance se fermerait sans rien afficher. FEUILLET_NO_SINGLE_INSTANCE la désactive aussi.
+    if !cfg!(debug_assertions) && std::env::var_os("FEUILLET_NO_SINGLE_INSTANCE").is_none() {
         builder_app = builder_app.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             let paths = file_args(argv.into_iter().skip(1), Path::new(&cwd));
             if !paths.is_empty() {
@@ -118,6 +121,21 @@ pub fn run() {
         }));
     }
     builder_app
+        // La fenêtre est créée invisible (pas de flash blanc avant le thème) et affichée par
+        // l'interface ; filet de sécurité : on l'affiche de toute façon une fois la page chargée,
+        // pour qu'une erreur au démarrage de l'interface ne laisse jamais l'app sans fenêtre.
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                let w = webview.window();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(1500));
+                    if !w.is_visible().unwrap_or(true) {
+                        eprintln!("[feuillet] l'interface n'a pas affiché la fenêtre : affichage forcé");
+                        let _ = w.show();
+                    }
+                });
+            }
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(PendingFiles(Mutex::new(initial)))

@@ -279,6 +279,9 @@ export const commands = {
   async systemLocale(): Promise<string> {
     return "fr-FR";
   },
+  async logFrontendError(message: string) {
+    console.error(message);
+  },
   async takePendingFiles(): Promise<string[]> {
     const p = e2e.pending ?? [];
     e2e.pending = [];

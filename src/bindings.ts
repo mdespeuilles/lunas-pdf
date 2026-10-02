@@ -46,6 +46,11 @@ export const commands = {
 	systemLocale: () => __TAURI_INVOKE<string>("system_locale"),
 	/**  Fichiers passés en ligne de commande au lancement (vidé à la lecture). */
 	takePendingFiles: () => __TAURI_INVOKE<string[]>("take_pending_files"),
+	/**
+	 *  Erreurs JavaScript de l'interface, recopiées dans le terminal (diagnostic sous WebKitGTK,
+	 *  dont la console n'est pas visible).
+	 */
+	logFrontendError: (message: string) => __TAURI_INVOKE<void>("log_frontend_error", { message }),
 };
 
 /** Events */
