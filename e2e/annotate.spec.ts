@@ -222,3 +222,17 @@ test("déplacement : le contenu suit la souris, puis réapparaît à sa place", 
   await expect.poll(async () => (await model(page)).find((a) => a.body.type === "square").rect.x).toBeCloseTo(sq.rect.x, 0);
   expect((await model(page)).find((a) => a.body.type === "square").hidden).toBe(false);
 });
+
+test("mini-barre : reste dans la page près du bord droit", async ({ page }) => {
+  await start(page);
+  const pg = page.locator(".page[data-page='0']");
+  const box = (await pg.boundingBox())!;
+  await page.keyboard.press("c");
+  await page.mouse.click(box.x + box.width - 12, box.y + 300);
+  const mini = page.getByRole("toolbar", { name: "Case à cocher" });
+  await expect(mini).toBeVisible();
+  const m = (await mini.boundingBox())!;
+  expect(m.x + m.width).toBeLessThanOrEqual(box.x + box.width);
+  expect(m.x).toBeGreaterThanOrEqual(box.x);
+  await expect(mini.getByRole("button", { name: "Supprimer (Suppr)" })).toBeInViewport();
+});

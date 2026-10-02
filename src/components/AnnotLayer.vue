@@ -381,11 +381,27 @@ function onNoteKey(e: KeyboardEvent) {
 }
 
 // --- Mini-barre --------------------------------------------------------------------------------
+/** Largeur réelle de la mini-barre (mesurée) pour la garder dans la page. */
+const miniEl = ref<HTMLElement>();
+const miniW = ref(0);
+let miniObserver: ResizeObserver | undefined;
+watch(miniEl, (el) => {
+  miniObserver?.disconnect();
+  if (!el) return;
+  miniW.value = el.offsetWidth;
+  miniObserver = new ResizeObserver(() => (miniW.value = el.offsetWidth));
+  miniObserver.observe(el);
+});
+onBeforeUnmount(() => miniObserver?.disconnect());
+
 const mini = computed(() => {
   const a = selected.value;
   if (!a || drag.value || editing.value || !interactive.value) return null;
+  const pageW = props.pageW * props.k;
   const top = a.rect.y * props.k - 48;
-  return { left: Math.max(0, a.rect.x * props.k - 6), top: top < 4 ? (a.rect.y + a.rect.h) * props.k + 10 : top };
+  // Alignée sur l'annotation, mais ramenée dans la page près des bords.
+  const left = Math.min(a.rect.x * props.k - 6, pageW - miniW.value - 4);
+  return { left: Math.max(4, left), top: top < 4 ? (a.rect.y + a.rect.h) * props.k + 10 : top };
 });
 const selFamily = computed(() => (selected.value ? familyOf(selected.value.body.type) : ""));
 const selKey = computed(() => (selected.value ? paletteKeyOf(selected.value.color) : null));
@@ -537,7 +553,7 @@ defineExpose({ duplicate, remove, startEdit });
     </div>
 
     <!-- Mini-barre flottante -->
-    <div v-if="mini && selected" class="mini" :style="{ left: mini.left + 'px', top: mini.top + 'px' }" role="toolbar" :aria-label="t(`annot.kinds.${selected.body.type}`)" @pointerdown.stop>
+    <div v-if="mini && selected" ref="miniEl" class="mini" :style="{ left: mini.left + 'px', top: mini.top + 'px' }" role="toolbar" :aria-label="t(`annot.kinds.${selected.body.type}`)" @pointerdown.stop>
       <template v-if="recolorable">
         <button
           v-for="p in PALETTE"
