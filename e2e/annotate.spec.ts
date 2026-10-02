@@ -206,10 +206,12 @@ test("déplacement : le contenu suit la souris, puis réapparaît à sa place", 
   const k = box.width / 595.28;
   // Saisie sur le bord du rectangle, puis glisser de 100 px.
   await page.mouse.move(box.x + (sq.rect.x + 1) * k, box.y + (sq.rect.y + 10) * k);
+  await expect(page.locator(".page[data-page='0'] .hit.movable").first()).toHaveCSS("cursor", "grab");
   await page.mouse.down();
   await page.mouse.move(box.x + (sq.rect.x + 1) * k + 50, box.y + (sq.rect.y + 10) * k, { steps: 3 });
   await page.mouse.move(box.x + (sq.rect.x + 1) * k + 100, box.y + (sq.rect.y + 10) * k, { steps: 3 });
-  // Pendant le glisser : original masqué, aperçu présent.
+  // Pendant le glisser : main fermée, original masqué, aperçu présent.
+  await expect(page.locator(".page[data-page='0'] .alayer")).toHaveCSS("cursor", "grabbing");
   await expect.poll(async () => (await model(page)).find((a) => a.body.type === "square").hidden).toBe(true);
   await expect(page.locator(".page[data-page='0'] .alayer svg.box rect")).toHaveCount(1);
   await page.mouse.up();

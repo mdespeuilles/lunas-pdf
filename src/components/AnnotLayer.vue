@@ -447,7 +447,7 @@ defineExpose({ duplicate, remove, startEdit });
   <div
     ref="layer"
     class="alayer"
-    :class="{ creating, ['tool-' + tools.tool]: creating }"
+    :class="{ creating, ['tool-' + tools.tool]: creating, grabbing: drag?.handle === 'move' }"
     :aria-label="t('annot.layer', { n: page + 1 })"
     @pointerdown="onLayerDown"
     @pointermove="onLayerMove"
@@ -577,7 +577,9 @@ defineExpose({ duplicate, remove, startEdit });
 .alayer.tool-note, .alayer.tool-check { cursor: copy; }
 .note-tip { position: absolute; pointer-events: auto; cursor: help; }
 .hit { position: absolute; pointer-events: auto; border-radius: 2px; cursor: pointer; }
-.hit.movable { cursor: move; }
+/* Main ouverte au survol, fermée pendant le déplacement (`move` manque dans certains thèmes GTK). */
+.hit.movable { cursor: grab; }
+.alayer.grabbing, .alayer.grabbing * { cursor: grabbing !important; }
 .hit:hover { box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--accent) 60%, transparent); }
 .hit.sel:hover { box-shadow: none; }
 .sel-box { position: absolute; border: 1px dashed var(--accent); pointer-events: none; margin: -3px; padding: 3px; box-sizing: content-box; }
