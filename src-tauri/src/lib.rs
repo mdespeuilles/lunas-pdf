@@ -34,6 +34,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::set_annotation_hidden,
             commands::text_range,
             commands::import_image,
+            commands::copy_image,
             commands::save_document,
             commands::get_links,
             commands::get_page_text,

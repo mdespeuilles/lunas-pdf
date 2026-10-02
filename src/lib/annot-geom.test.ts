@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Annot } from "../bindings";
-import { canMove, canResize, handlePos, hitRects, kindKey, moved, pdfDateTime, rectFrom, resized, snap45 } from "./annot-geom";
+import { canCopy, canMove, canResize, handlePos, hitRects, kindKey, moved, pasted, pdfDateTime, rectFrom, resized, snap45 } from "./annot-geom";
 
 const base = (body: Annot["body"], rect = { x: 10, y: 20, w: 100, h: 50 }): Annot => ({
   id: "a", page: 0, rect, color: "#e03131", opacity: 1, width: 2, contents: null, author: null, modified: null, excerpt: null, body, hidden: false,
@@ -39,5 +39,24 @@ describe("géométrie des annotations", () => {
   it("dates PDF", () => {
     expect(pdfDateTime(null, "fr")).toBeNull();
     expect(pdfDateTime("D:20200102030405Z", "fr")).toMatch(/2 janv\.?/);
+  });
+});
+
+describe("copier-coller", () => {
+  it("copiable : ni marquage ni annotation externe", () => {
+    expect(canCopy(base({ type: "square" }))).toBe(true);
+    expect(canCopy(base({ type: "highlight", quads: [] }))).toBe(false);
+    expect(canCopy(base({ type: "other", subtype: "Ink" }))).toBe(false);
+    expect(canCopy(base({ type: "image", image: "ap" }))).toBe(false);
+    expect(canCopy(base({ type: "image", image: "img1" }))).toBe(true);
+  });
+  it("collée : nouvel identifiant, décalée, gardée dans la page", () => {
+    const a = { ...base({ type: "line", from: { x: 10, y: 20 }, to: { x: 110, y: 70 }, arrow: false }), author: "X", modified: "D:2020" };
+    const p = pasted(a, 3, 600, 800, 12);
+    expect(p).toMatchObject({ page: 3, author: null, modified: null, rect: { x: 22, y: 32 }, body: { from: { x: 22, y: 32 } } });
+    expect(p.id).not.toBe(a.id);
+    const edge = pasted(a, 0, 115, 75, 12);
+    expect(edge.rect).toMatchObject({ x: 15, y: 25 });
+    expect(edge.body).toMatchObject({ to: { x: 115, y: 75 } });
   });
 });

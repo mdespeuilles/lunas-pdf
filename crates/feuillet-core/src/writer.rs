@@ -140,6 +140,10 @@ impl Editor {
         self.images.insert(key, img);
     }
 
+    pub fn image(&self, key: &str) -> Option<ImportedImage> {
+        self.images.get(key).cloned()
+    }
+
     pub fn apply(&mut self, ops: Vec<AnnotOp>) -> Vec<u32> {
         let ops = ops.into_iter().map(|op| self.normalize_op(op)).collect();
         self.history.apply(&mut self.annots, ops)

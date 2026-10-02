@@ -203,6 +203,14 @@ pub async fn import_image(engine: State<'_, Engine>, doc: DocId, path: String) -
     blocking(move || e.import_image(doc, path)).await
 }
 
+/// Copie une image importée d'un document à l'autre (collage d'un tampon image).
+#[tauri::command]
+#[specta::specta]
+pub async fn copy_image(engine: State<'_, Engine>, from: DocId, to: DocId, key: String) -> Result<()> {
+    let e = engine.inner().clone();
+    blocking(move || e.copy_image(from, to, key)).await
+}
+
 /// Enregistre le document (sur place, ou sous `path`). Écriture atomique ; l'original n'est
 /// jamais touché avant cet appel.
 #[tauri::command]

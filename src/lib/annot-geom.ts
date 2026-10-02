@@ -29,6 +29,12 @@ export function canMove(a: Annot): boolean {
   return !["highlight", "underline", "strikeOut"].includes(t) && !(t === "redact" && a.body.quads.length > 1);
 }
 
+/** Copiable (et duplicable) : le marquage suit le texte de sa page, et l'apparence d'une
+ * annotation externe ne se recrée pas sous un autre identifiant. */
+export function canCopy(a: Annot): boolean {
+  return canMove(a) && a.body.type !== "other" && !(a.body.type === "image" && a.body.image === "ap");
+}
+
 export function canResize(a: Annot): boolean {
   return canMove(a) && !["note", "other"].includes(a.body.type);
 }
@@ -48,6 +54,14 @@ export function moved(a: Annot, dx: number, dy: number): Annot {
         ? { ...b, quads: b.quads.map(shift) }
         : b;
   return { ...a, rect: shift(a.rect), body } as Annot;
+}
+
+/** Copie collée sur `page` : nouvel identifiant, décalée de `offset`, gardée dans la page. */
+export function pasted(a: Annot, page: number, pageW: number, pageH: number, offset: number): Annot {
+  const m = moved(a, offset, offset);
+  const r = clampRect(m.rect, pageW, pageH);
+  const id = crypto.randomUUID();
+  return { ...moved(m, r.x - m.rect.x, r.y - m.rect.y), id, page, author: null, modified: null, hidden: false };
 }
 
 /** Annotation redimensionnée en tirant une poignée jusqu'à `p`. */

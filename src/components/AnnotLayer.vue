@@ -8,8 +8,9 @@ import type { Annot, AnnotBody, Point, Rect } from "../bindings";
 import { commands, unwrap } from "../lib/api";
 import { FREETEXT_LEADING, FREETEXT_PAD, fitTextBox, wrap } from "../lib/afm";
 import AnnotPreview from "./AnnotPreview.vue";
+import { useAnnotClipboard } from "../composables/clipboard";
 import {
-  BOX_HANDLES, type Handle, canMove, canResize, handlePos, hitRects, moved, rectFrom, resized, snap45,
+  BOX_HANDLES, type Handle, canCopy, canMove, canResize, handlePos, hitRects, moved, rectFrom, resized, snap45,
 } from "../lib/annot-geom";
 import { PALETTE, type PaletteKey, SIZES, WIDTHS, colorFor, familyOf, paletteKeyOf, useAnnotTools } from "../stores/annotTools";
 import { type DocTab, useTabs } from "../stores/tabs";
@@ -18,6 +19,7 @@ const props = defineProps<{ tab: DocTab; page: number; k: number; pageW: number;
 const { t } = useI18n();
 const tabs = useTabs();
 const tools = useAnnotTools();
+const clipboard = useAnnotClipboard();
 const layer = ref<HTMLElement>();
 
 const doc = computed(() => props.tab.info!.id);
@@ -440,10 +442,8 @@ function setWidth(width: number) {
 }
 
 function duplicate() {
-  const a = selected.value;
-  if (!a) return;
-  const copy = { ...moved(a, 12, 12), id: crypto.randomUUID(), author: null, modified: null };
-  void create(copy);
+  if (!isMarkup(tools.tool)) tools.tool = "select";
+  void clipboard.duplicate(props.tab);
 }
 
 function remove() {
@@ -587,7 +587,7 @@ defineExpose({ duplicate, remove, startEdit });
         </select>
         <div class="sep" />
       </template>
-      <button class="tb" :aria-label="t('annot.duplicate')" :title="t('annot.duplicate')" @click="duplicate"><Copy class="ic s" aria-hidden="true" /></button>
+      <button v-if="canCopy(selected)" class="tb" :aria-label="t('annot.duplicate')" :title="t('annot.duplicate')" @click="duplicate"><Copy class="ic s" aria-hidden="true" /></button>
       <button class="tb" :aria-label="t('annot.delete')" :title="t('annot.delete')" @click="remove"><Trash2 class="ic s" aria-hidden="true" /></button>
     </div>
   </div>

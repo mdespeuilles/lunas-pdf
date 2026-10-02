@@ -587,3 +587,35 @@ fn save_as_leaves_original_untouched() {
     assert_eq!(std::fs::read(&path).unwrap(), original, "original non modifié");
     assert!(std::fs::read(&copy).unwrap().len() > original.len());
 }
+
+#[test]
+fn image_copied_between_documents() {
+    let e = engine();
+    let a = e.open(scratch("texte-simple.pdf", "copyimg-a"), None).unwrap();
+    let path_b = scratch("texte-simple.pdf", "copyimg-b");
+    let b = e.open(&path_b, None).unwrap();
+    let png = path_b.with_file_name("tampon.png");
+    tiny_png(&png);
+    let img = e.import_image(a.id, &png).unwrap();
+
+    assert!(e.copy_image(a.id, b.id, "inconnue".into()).is_err());
+    e.copy_image(a.id, b.id, img.key.clone()).unwrap();
+    e.edit(
+        b.id,
+        EditRequest::Apply(vec![add(annot(
+            "img",
+            0,
+            r(100.0, 100.0, 40.0, 20.0),
+            "#000000",
+            AnnotBody::Image { image: img.key },
+        ))]),
+    )
+    .unwrap();
+    e.save(b.id, None).unwrap();
+    qpdf_check(&path_b, None);
+    let bytes = std::fs::read(&path_b).unwrap();
+    assert!(
+        bytes.windows(b"/Subtype /Image".len()).any(|w| w == b"/Subtype /Image")
+            || bytes.windows(b"/Subtype/Image".len()).any(|w| w == b"/Subtype/Image")
+    );
+}

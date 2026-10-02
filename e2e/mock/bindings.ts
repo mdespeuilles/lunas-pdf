@@ -220,6 +220,9 @@ export const commands = {
   async importImage(_doc: number, path: string): Res<ImageInfo> {
     return ok({ key: `img:${path}`, width: 200, height: 100 });
   },
+  async copyImage(_from: number, _to: number, _key: string): Res<null> {
+    return ok(null);
+  },
   async saveDocument(doc: number, path: string | null): Res<DocInfo> {
     e2e.calls!.push(`save:${path ?? open.get(doc)}`);
     const ed = editor(doc);

@@ -123,6 +123,7 @@ test("note, case à cocher, duplication et déplacement au clavier", async ({ pa
   await page.getByRole("radio", { name: "Croix" }).click();
   await page.mouse.click(box.x + 200, box.y + 600);
   await expect.poll(async () => (await model(page)).find((a) => a.body.type === "check")?.body.style).toBe("cross");
+  expect((await model(page)).find((a) => a.body.type === "check")?.color).toBe("#1b1b20");
 
   await page.keyboard.press("Control+d");
   await expect.poll(async () => (await model(page)).filter((a) => a.body.type === "check").length).toBe(2);
@@ -260,4 +261,34 @@ test("outils de pose à usage unique, marquage enchaînable", async ({ page }) =
   await drag(page, [80 * k, 102 * k], [200 * k, 102 * k]);
   await expect(bar.getByRole("button", { name: "Surligner (H)" })).toHaveAttribute("aria-pressed", "true");
   await expect.poll(async () => (await model(page)).filter((a) => a.body.type === "highlight" && a.page === 0).length).toBe(1);
+});
+
+test("copier, couper, coller (Ctrl C / X / V), aussi sur une autre page", async ({ page }) => {
+  await start(page);
+  const squares = async () => (await model(page)).filter((a) => a.body.type === "square");
+  await page.keyboard.press("r");
+  await drag(page, [300, 300], [450, 380]);
+  await expect.poll(async () => (await squares()).length).toBe(1);
+  const [orig] = await squares();
+
+  await page.keyboard.press("Control+c");
+  await page.keyboard.press("Control+v");
+  await page.keyboard.press("Control+v");
+  await expect.poll(async () => (await squares()).length).toBe(3);
+  const xs = (await squares()).map((a) => Math.round(a.rect.x - orig.rect.x));
+  expect(xs).toEqual([0, 12, 24]);
+
+  // Couper puis coller : même place.
+  await page.keyboard.press("Control+x");
+  await expect.poll(async () => (await squares()).length).toBe(2);
+  await page.keyboard.press("Control+v");
+  await expect.poll(async () => (await squares()).length).toBe(3);
+  expect(Math.round((await squares())[2].rect.x - orig.rect.x)).toBe(24);
+
+  // Sur la dernière page, à la même position.
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("End");
+  await expect(page.getByRole("toolbar", { name: "contrat.pdf" }).getByRole("textbox").first()).toHaveValue("12");
+  await page.keyboard.press("Control+v");
+  await expect.poll(async () => (await squares()).find((a) => a.page === 11)?.rect.x).toBeCloseTo(orig.rect.x + 24);
 });

@@ -38,6 +38,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 | Panneau contextuel : 6 couleurs, épaisseur, police, taille, symbole | ✅ | |
 | Survol, sélection, 8 poignées (2 pour les lignes), déplacement, redimensionnement | ✅ | Maj : 45° pour les lignes, proportions conservées ; flèches du clavier : déplacement de 1 pt (10 avec Maj) |
 | Mini-barre : couleur, taille, épaisseur, Dupliquer (Ctrl D), Supprimer (Suppr) | ✅ | |
+| Copier, couper, coller (Ctrl C / X / V) | ✅ | Collage sur la page courante, aussi dans un autre onglet ; décalé en cascade sur la page d’origine. Hors marquage de texte et annotations externes |
 | Édition en place des zones de texte, notes | ✅ | Double-clic ; Ctrl Entrée ou clic ailleurs pour valider, Échap pour annuler |
 | Liste des annotations par page (planche 03), clic pour s'y rendre | ✅ | Extrait du texte marqué, « Vous · heure » |
 | Annotations PDF natives avec apparences, lisibles par PDFium et Poppler | ✅ | 🟡 Acrobat et Aperçu non vérifiés (pas de Mac ici) |

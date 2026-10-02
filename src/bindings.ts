@@ -27,6 +27,8 @@ export const commands = {
 	/**  Boîtes des lignes de texte entre deux points (outils de marquage). */
 	textRange: (doc: number, page: number, from: Point, to: Point) => typedError<TextSelection, PdfError>(__TAURI_INVOKE("text_range", { doc, page, from, to })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,rects:v.data.rects.map(i=>i)}) } : v) as typeof v)),
 	importImage: (doc: number, path: string) => typedError<ImageInfo, PdfError>(__TAURI_INVOKE("import_image", { doc, path })),
+	/**  Copie une image importée d'un document à l'autre (collage d'un tampon image). */
+	copyImage: (from: number, to: number, key: string) => typedError<null, PdfError>(__TAURI_INVOKE("copy_image", { from, to, key })),
 	/**
 	 *  Enregistre le document (sur place, ou sous `path`). Écriture atomique ; l'original n'est
 	 *  jamais touché avant cet appel.

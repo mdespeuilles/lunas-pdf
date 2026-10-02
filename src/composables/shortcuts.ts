@@ -4,6 +4,7 @@ import { moved, canMove } from "../lib/annot-geom";
 import { TOOL_KEYS, useAnnotTools } from "../stores/annotTools";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
+import { useAnnotClipboard } from "./clipboard";
 import { markupFromSelection } from "./markup";
 import { openFromDialog } from "./open";
 import { requestClose, saveTab } from "./save";
@@ -23,6 +24,7 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
   const tabs = useTabs();
   const ui = useUi();
   const tools = useAnnotTools();
+  const clipboard = useAnnotClipboard();
 
   function onKey(e: KeyboardEvent) {
     const ctrl = e.ctrlKey || e.metaKey;
@@ -46,13 +48,16 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
     if (ctrl && e.shiftKey && key === "a") return run(e, () => tabs.toggleAnnotating(tab));
     if (!typing && ctrl && (key === "y" || (key === "z" && e.shiftKey))) return run(e, () => tabs.redo(tab));
     if (!typing && ctrl && key === "z") return run(e, () => tabs.undo(tab));
+    // Presse-papiers des annotations ; sans annotation sélectionnée, Ctrl C copie le texte.
+    if (!typing && ctrl && !e.shiftKey && (key === "c" || key === "x")) {
+      if (clipboard.copy(tab, key === "x")) return run(e, () => {});
+      clipboard.forget();
+    }
+    if (!typing && ctrl && !e.shiftKey && key === "v" && clipboard.canPaste()) return run(e, () => clipboard.paste(tab));
     const sel = tab.selected ? tab.edit?.annots.find((a) => a.id === tab.selected) : undefined;
     if (!typing && sel) {
       if (e.key === "Delete" || e.key === "Backspace") return run(e, () => tabs.removeAnnot(tab, sel.id));
-      if (ctrl && key === "d") {
-        const copy = { ...moved(sel, 12, 12), id: crypto.randomUUID(), author: null, modified: null };
-        return run(e, () => tabs.addAnnot(tab, copy).then(() => (tab.selected = copy.id)));
-      }
+      if (ctrl && key === "d") return run(e, () => clipboard.duplicate(tab));
       const arrows: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
       if (arrows[e.key] && canMove(sel)) {
         const step = e.shiftKey ? 10 : 1;

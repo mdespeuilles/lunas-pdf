@@ -62,6 +62,12 @@ enum Msg {
         path: PathBuf,
         reply: Sender<Result<ImageInfo>>,
     },
+    CopyImage {
+        from: DocId,
+        to: DocId,
+        key: String,
+        reply: Sender<Result<()>>,
+    },
     Save {
         doc: DocId,
         path: Option<PathBuf>,
@@ -187,6 +193,11 @@ impl Engine {
     pub fn import_image(&self, doc: DocId, path: impl Into<PathBuf>) -> Result<ImageInfo> {
         let path = path.into();
         self.call(|reply| Msg::ImportImage { doc, path, reply })
+    }
+    /// Rend une image importée dans `from` utilisable dans `to` (même clé) : collage d'un
+    /// tampon image d'un document à l'autre.
+    pub fn copy_image(&self, from: DocId, to: DocId, key: String) -> Result<()> {
+        self.call(|reply| Msg::CopyImage { from, to, key, reply })
     }
     /// Enregistre (sur place ou sous un autre nom) ; écriture atomique.
     pub fn save(&self, doc: DocId, path: Option<PathBuf>) -> Result<DocInfo> {
@@ -361,6 +372,9 @@ impl Actor {
             }
             Msg::ImportImage { doc, path, reply } => {
                 let _ = reply.send(self.import_image(doc, &path));
+            }
+            Msg::CopyImage { from, to, key, reply } => {
+                let _ = reply.send(self.copy_image(from, to, key));
             }
             Msg::Save { doc, path, reply } => {
                 let _ = reply.send(self.save(doc, path));
@@ -583,6 +597,18 @@ impl Actor {
             },
         );
         Ok(ImageInfo { key, width, height })
+    }
+
+    fn copy_image(&mut self, from: DocId, to: DocId, key: String) -> Result<()> {
+        let img = self
+            .editor(from)?
+            .editor
+            .as_ref()
+            .unwrap()
+            .image(&key)
+            .ok_or_else(|| Error::NotFound(format!("image {key}")))?;
+        self.editor(to)?.editor.as_mut().unwrap().add_image(key, img);
+        Ok(())
     }
 
     fn save(&mut self, doc: DocId, path: Option<PathBuf>) -> Result<DocInfo> {
