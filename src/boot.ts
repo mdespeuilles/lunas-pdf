@@ -9,5 +9,14 @@ export function bootLog(message: string) {
 }
 
 bootLog(`démarrage : page chargée (${navigator.userAgent.match(/AppleWebKit\/[\d.]+/)?.[0] ?? "?"})`);
-window.addEventListener("error", (e) => bootLog(`erreur : ${e.message} (${e.filename}:${e.lineno}:${e.colno})`), true);
+window.addEventListener(
+  "error",
+  (e) => {
+    // Échec de chargement d'une ressource (script, style) : pas de message, mais une cible.
+    const el = e.target as (HTMLElement & { src?: string; href?: string }) | null;
+    if (el && el !== (window as unknown) && (el.src || el.href)) bootLog(`ressource introuvable : ${el.src || el.href}`);
+    else bootLog(`erreur : ${e.message} (${e.filename}:${e.lineno}:${e.colno})`);
+  },
+  true,
+);
 window.addEventListener("unhandledrejection", (e) => bootLog(`promesse rejetée : ${String((e.reason as Error)?.stack ?? e.reason)}`));
