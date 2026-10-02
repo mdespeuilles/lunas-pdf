@@ -9,7 +9,7 @@ use feuillet_core::{
 use tauri::State;
 use tauri::ipc::Channel;
 
-use crate::store::{RecentDoc, Settings, Store, path_id};
+use crate::store::{RecentDoc, SavedSignature, Settings, Store, TrustedRoot, path_id};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -203,6 +203,53 @@ pub async fn import_image(engine: State<'_, Engine>, doc: DocId, path: String) -
     blocking(move || e.import_image(doc, path)).await
 }
 
+/// Image PNG ou JPEG produite par l'interface (signature manuscrite).
+#[tauri::command]
+#[specta::specta]
+pub async fn import_image_bytes(engine: State<'_, Engine>, doc: DocId, bytes: Vec<u8>) -> Result<ImageInfo> {
+    let e = engine.inner().clone();
+    blocking(move || e.import_image_bytes(doc, bytes)).await
+}
+
+/// Octets d'une image choisie par l'utilisateur (onglet « Importer » d'une signature).
+#[tauri::command]
+#[specta::specta]
+pub async fn read_image_file(path: String) -> Result<Vec<u8>> {
+    let ext = std::path::Path::new(&path)
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    if !["png", "jpg", "jpeg", "svg"].contains(&ext.as_str()) {
+        return Err(Error::Invalid(format!("format non pris en charge : {ext}")));
+    }
+    blocking(move || {
+        let meta = std::fs::metadata(&path).map_err(io)?;
+        if meta.len() > 20 * 1024 * 1024 {
+            return Err(Error::Invalid("image trop lourde (20 Mo au plus)".into()));
+        }
+        std::fs::read(&path).map_err(io)
+    })
+    .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_signatures(store: State<'_, Store>) -> Vec<SavedSignature> {
+    store.signatures()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn save_signature(store: State<'_, Store>, png: Vec<u8>, width: u32, height: u32) -> Result<SavedSignature> {
+    store.add_signature(&png, width, height, now_ms()).map_err(io)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn delete_signature(store: State<'_, Store>, id: String) -> Result<()> {
+    store.remove_signature(&id).map_err(io)
+}
+
 /// Copie une image importée d'un document à l'autre (collage d'un tampon image).
 #[tauri::command]
 #[specta::specta]
@@ -225,6 +272,50 @@ pub async fn save_document(
     let info = blocking(move || e.save(doc, path.map(std::path::PathBuf::from))).await?;
     store.bump_recent(&info.path, now_ms()).map_err(io)?;
     Ok(info)
+}
+
+/// Signatures numériques du document et résultat de leur vérification.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_signatures(
+    engine: State<'_, Engine>,
+    store: State<'_, Store>,
+    doc: DocId,
+) -> Result<Vec<feuillet_core::SignatureInfo>> {
+    let e = engine.inner().clone();
+    let trusted = store.trusted_der();
+    blocking(move || e.signatures(doc, &trusted)).await
+}
+
+/// Approuve l'autorité en haut de la chaîne de la signature `field`.
+#[tauri::command]
+#[specta::specta]
+pub async fn trust_signature_root(
+    engine: State<'_, Engine>,
+    store: State<'_, Store>,
+    doc: DocId,
+    field: String,
+) -> Result<TrustedRoot> {
+    let e = engine.inner().clone();
+    let (der, name) = blocking(move || {
+        let (bytes, password) = e.saved_file(doc)?;
+        feuillet_core::signature::chain_root(&bytes, password.as_deref(), &field)
+            .ok_or_else(|| Error::Invalid("certificat introuvable".into()))
+    })
+    .await?;
+    store.add_trusted(&der, name, now_ms()).map_err(io)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_trusted_roots(store: State<'_, Store>) -> Vec<TrustedRoot> {
+    store.trusted_roots()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn remove_trusted_root(store: State<'_, Store>, id: String) -> Result<()> {
+    store.remove_trusted(&id).map_err(io)
 }
 
 #[tauri::command]

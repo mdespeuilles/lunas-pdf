@@ -33,7 +33,10 @@ function onKey(e: KeyboardEvent) {
 onMounted(async () => {
   previous = document.activeElement as HTMLElement | null;
   await nextTick();
-  focusables()[1]?.focus();
+  // Premier élément après la croix de fermeture, sinon la croix : le focus doit entrer dans
+  // la boîte (Échap et Tab y sont gérés).
+  const f = focusables();
+  (f[1] ?? f[0])?.focus();
 });
 onBeforeUnmount(() => previous?.focus());
 </script>

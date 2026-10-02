@@ -1,13 +1,20 @@
 // Formulaires : ordre de tabulation, focus d'un champ (même hors écran), effacement.
 import type { FormField, Widget } from "../bindings";
 import { type DocTab, useTabs } from "../stores/tabs";
+import { guardSigned } from "./signed";
 
 export interface Stop {
   field: FormField;
   widget: Widget;
 }
 
-/** Champ saisissable ici (les signatures viendront en phase 4). */
+/** Le document a quelque chose à remplir : champ saisissable ou signature à apposer. */
+export function hasFormContent(tab: DocTab): boolean {
+  const signed = new Set((tab.signatures ?? []).map((s) => s.field));
+  return (tab.edit?.fields ?? []).some((f) => fillable(f) || (f.kind.type === "signature" && !f.readOnly && !signed.has(f.id)));
+}
+
+/** Champ saisissable au clavier (les champs de signature s'ouvrent au clic). */
 export function fillable(f: FormField): boolean {
   return !f.readOnly && f.widgets.length > 0 && f.kind.type !== "signature" && f.kind.type !== "button";
 }
@@ -53,16 +60,19 @@ export function useForm() {
     focusField(tab, list[next].field.id);
   }
 
-  function setValue(tab: DocTab, id: string, value: string[]) {
-    return tabs.applyOps(tab, [{ op: "setField", id, value }]);
+  /** Saisie d'un champ ; faux si l'utilisateur renonce (document signé). */
+  async function setValue(tab: DocTab, id: string, value: string[]): Promise<boolean> {
+    if (!(await guardSigned(tab, "fill"))) return false;
+    await tabs.applyOps(tab, [{ op: "setField", id, value }]);
+    return true;
   }
 
   /** Rétablit les valeurs par défaut (un seul pas d'annulation). */
-  function reset(tab: DocTab) {
+  async function reset(tab: DocTab) {
     const ops = (tab.edit?.fields ?? [])
       .filter((f) => fillable(f) && JSON.stringify(f.value) !== JSON.stringify(f.defaultValue))
       .map((f) => ({ op: "setField" as const, id: f.id, value: f.defaultValue }));
-    if (ops.length) return tabs.applyOps(tab, ops);
+    if (ops.length && (await guardSigned(tab, "fill"))) return tabs.applyOps(tab, ops);
   }
 
   const canReset = (tab: DocTab) => (tab.edit?.fields ?? []).some((f) => fillable(f) && JSON.stringify(f.value) !== JSON.stringify(f.defaultValue));

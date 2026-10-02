@@ -59,7 +59,7 @@ enum Msg {
     },
     ImportImage {
         doc: DocId,
-        path: PathBuf,
+        bytes: Vec<u8>,
         reply: Sender<Result<ImageInfo>>,
     },
     CopyImage {
@@ -80,6 +80,10 @@ enum Msg {
         doc: DocId,
         page: u32,
         reply: Sender<Result<Vec<LinkInfo>>>,
+    },
+    SavedBytes {
+        doc: DocId,
+        reply: Sender<Result<SavedFile>>,
     },
     Text {
         doc: DocId,
@@ -103,6 +107,9 @@ enum Msg {
         reply: Sender<Result<Vec<u8>>>,
     },
 }
+
+/// Octets enregistrés d'un document et son mot de passe.
+pub type SavedFile = (Arc<Vec<u8>>, Option<String>);
 
 /// Demande d'édition des annotations (voir `writer::Editor`).
 #[derive(Debug, Clone)]
@@ -192,7 +199,12 @@ impl Engine {
     }
     pub fn import_image(&self, doc: DocId, path: impl Into<PathBuf>) -> Result<ImageInfo> {
         let path = path.into();
-        self.call(|reply| Msg::ImportImage { doc, path, reply })
+        let bytes = std::fs::read(&path).map_err(|e| Error::NotFound(format!("{}: {e}", path.display())))?;
+        self.import_image_bytes(doc, bytes)
+    }
+    /// Image PNG ou JPEG fournie par l'interface (signature dessinée, tapée…).
+    pub fn import_image_bytes(&self, doc: DocId, bytes: Vec<u8>) -> Result<ImageInfo> {
+        self.call(|reply| Msg::ImportImage { doc, bytes, reply })
     }
     /// Rend une image importée dans `from` utilisable dans `to` (même clé) : collage d'un
     /// tampon image d'un document à l'autre.
@@ -206,6 +218,20 @@ impl Engine {
     /// Nom d'auteur des nouvelles annotations (`/T`).
     pub fn set_author(&self, name: String) {
         let _ = self.tx.send(Msg::SetAuthor { name });
+    }
+    /// Octets enregistrés (sans la révision en cours d'édition) et mot de passe.
+    pub fn saved_file(&self, doc: DocId) -> Result<SavedFile> {
+        self.call(|reply| Msg::SavedBytes { doc, reply })
+    }
+    /// Vérifie les signatures numériques du fichier enregistré (hors du fil du moteur).
+    /// `trusted` : autorités approuvées par l'utilisateur (DER), en plus du système.
+    pub fn signatures(&self, doc: DocId, trusted: &[Vec<u8>]) -> Result<Vec<crate::signature::SignatureInfo>> {
+        let (bytes, password) = self.saved_file(doc)?;
+        Ok(crate::signature::verify_document(
+            &bytes,
+            password.as_deref(),
+            &crate::signature::roots_with(trusted),
+        ))
     }
     pub fn links(&self, doc: DocId, page: u32) -> Result<Vec<LinkInfo>> {
         self.call(|reply| Msg::Links { doc, page, reply })
@@ -370,8 +396,8 @@ impl Actor {
             } => {
                 let _ = reply.send(self.glyphs(doc, page).map(|g| crate::text::range(&g, from, to)));
             }
-            Msg::ImportImage { doc, path, reply } => {
-                let _ = reply.send(self.import_image(doc, &path));
+            Msg::ImportImage { doc, bytes, reply } => {
+                let _ = reply.send(self.import_image(doc, bytes));
             }
             Msg::CopyImage { from, to, key, reply } => {
                 let _ = reply.send(self.copy_image(from, to, key));
@@ -381,6 +407,13 @@ impl Actor {
             }
             Msg::SetAuthor { name } => {
                 self.author = name;
+            }
+            Msg::SavedBytes { doc, reply } => {
+                let _ = reply.send(self.doc(doc).map(|d| {
+                    // Octets enregistrés (sans la révision en cours d'édition).
+                    let bytes = d.editor.as_ref().map(|e| e.base().clone()).unwrap_or_else(|| d.bytes.clone());
+                    (bytes, d.password.clone())
+                }));
             }
             Msg::Links { doc, page, reply } => {
                 let _ = reply.send(self.doc(doc).and_then(|d| links(&d.pdf, page)));
@@ -576,8 +609,8 @@ impl Actor {
         }
     }
 
-    fn import_image(&mut self, doc: DocId, path: &Path) -> Result<ImageInfo> {
-        let bytes = std::fs::read(path).map_err(|e| Error::NotFound(format!("{}: {e}", path.display())))?;
+    fn import_image(&mut self, doc: DocId, bytes: Vec<u8>) -> Result<ImageInfo> {
+        static SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let (width, height) = image::ImageReader::new(std::io::Cursor::new(&bytes))
             .with_guessed_format()
             .map_err(|e| Error::Invalid(e.to_string()))?
@@ -586,7 +619,7 @@ impl Actor {
         let key = format!(
             "img{}",
             crate::writer::pdf_date_now().trim_start_matches("D:").trim_end_matches('Z')
-        ) + &format!("{:x}", bytes.len());
+        ) + &format!("{:x}n{}", bytes.len(), SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
         let d = self.editor(doc)?;
         d.editor.as_mut().unwrap().add_image(
             key.clone(),

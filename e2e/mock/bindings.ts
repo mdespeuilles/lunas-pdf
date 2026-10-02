@@ -1,7 +1,7 @@
 // Backend simulé pour les tests de parcours (vite --mode e2e) : remplace src/bindings.ts.
 // Mêmes signatures que les commandes générées par tauri-specta, données déterministes.
 import type {
-  Annot, AnnotOp, DocInfo, EditState, FormField, ImageInfo, LinkInfo, OpenFilesEvent, OutlineItem, PageText, PdfError, Point, RecentDoc, Rect, SearchEvent, SearchHit,
+  Annot, AnnotOp, DocInfo, EditState, FormField, SavedSignature, SignatureInfo, TrustedRoot, ImageInfo, LinkInfo, OpenFilesEvent, OutlineItem, PageText, PdfError, Point, RecentDoc, Rect, SearchEvent, SearchHit,
   Settings, TextRun, TextSelection,
 } from "../../src/bindings";
 
@@ -32,6 +32,7 @@ interface MockDoc {
   password?: string;
   form?: DocInfo["form"];
   signed?: boolean;
+  sig?: SignatureInfo["status"];
 }
 const DOCS: Record<string, MockDoc> = {
   "/docs/contrat.pdf": { pages: 12 },
@@ -39,7 +40,31 @@ const DOCS: Record<string, MockDoc> = {
   "/docs/protege.pdf": { pages: 3, password: "feuillet" },
   "/docs/xfa.pdf": { pages: 2, form: "xfa" },
   "/docs/formulaire.pdf": { pages: 2, form: "acroForm" },
+  "/docs/signe.pdf": { pages: 2, signed: true, sig: "valid" },
+  "/docs/signe-altere.pdf": { pages: 2, signed: true, sig: "invalid" },
+  "/docs/signe-inconnu.pdf": { pages: 2, signed: true, sig: "unknown" },
 };
+
+function signatureOf(status: SignatureInfo["status"]): SignatureInfo {
+  return {
+    field: "Signature1", page: 0, rect: { x: 72, y: 600, w: 220, h: 60 }, status,
+    signer: "Claire Martin", organization: "Atelier Vauban SARL", signedAt: 1790598720, utcOffset: 120,
+    reason: "Bon pour accord", location: "Lyon", intact: status !== "invalid", coversWhole: true, trusted: status === "valid",
+    certValidAtSigning: true, timestamp: null, timestampVerified: false, timestampTrusted: false, subFilter: "ETSI.CAdES.detached",
+    problem: status === "valid" ? null : status === "invalid" ? "modified" : "untrusted",
+    certificate: {
+      subject: "CN=Claire Martin,O=Atelier Vauban SARL,C=FR", commonName: "Claire Martin", organization: "Atelier Vauban SARL",
+      issuer: "CN=Autorité de test,C=FR", issuerName: "Autorité de test", notBefore: 1768176000, notAfter: 1831248000,
+      serial: "01:23", sha256: "4F:2A:91:C3:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:7C:0E",
+      chain: status === "valid" ? ["Claire Martin", "Autorité de test"] : ["Claire Martin", "Autorité de test"],
+      rootName: "Autorité de test", rootSha256: "AB:CD:EF",
+    },
+  };
+}
+
+const PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+let savedSignatures: SavedSignature[] = [];
+let trustedRoots: TrustedRoot[] = [];
 
 // Champs du formulaire simulé (mêmes types que le fixture formulaire-acroform.pdf).
 function formFields(): FormField[] {
@@ -57,6 +82,7 @@ function formFields(): FormField[] {
     { ...base, id: "fixe", readOnly: true, kind: text, value: ["Lecture seule"], defaultValue: ["Lecture seule"], widgets: [w(180, 370, 200, 20)] },
     { ...base, id: "prix", kind: text, value: [""], defaultValue: [""], widgets: [w(180, 410, 200, 20)], format: { type: "number" as const, decimals: 2, sepStyle: 2, negStyle: 0, currency: " €", prepend: false }, range: { min: 0, max: 10000 } },
     { ...base, id: "date", kind: text, value: [""], defaultValue: [""], widgets: [w(180, 450, 200, 20)], format: { type: "date" as const, format: "dd/mm/yyyy" }, customScript: true },
+    { ...base, id: "signature", kind: { type: "signature" as const }, value: [], defaultValue: [], widgets: [w(180, 500, 200, 50)] },
     { ...base, id: "ville", kind: text, value: [""], defaultValue: [""], widgets: [w(180, 120, 300, 20, null, 1)] },
   ];
 }
@@ -254,6 +280,45 @@ export const commands = {
   },
   async importImage(_doc: number, path: string): Res<ImageInfo> {
     return ok({ key: `img:${path}`, width: 200, height: 100 });
+  },
+  async getSignatures(doc: number): Res<SignatureInfo[]> {
+    const d = DOCS[open.get(doc) ?? ""];
+    // Une autorité approuvée rend valide la signature intacte « non vérifiable ».
+    const status = d?.sig === "unknown" && trustedRoots.length ? "valid" : d?.sig;
+    return ok(status ? [signatureOf(status)] : []);
+  },
+  async trustSignatureRoot(_doc: number, _field: string): Res<TrustedRoot> {
+    const r = { id: "AB:CD:EF", name: "Autorité de test", added: Date.now() };
+    trustedRoots = [r];
+    return ok(r);
+  },
+  async listTrustedRoots(): Promise<TrustedRoot[]> {
+    return clone(trustedRoots);
+  },
+  async removeTrustedRoot(id: string): Res<null> {
+    trustedRoots = trustedRoots.filter((r) => r.id !== id);
+    return ok(null);
+  },
+  async importImageBytes(_doc: number, bytes: number[]): Res<ImageInfo> {
+    e2e.calls!.push(`importImageBytes:${bytes.length}`);
+    return ok({ key: `img:bytes${bytes.length}`, width: 300, height: 100 });
+  },
+  async readImageFile(path: string): Res<number[]> {
+    e2e.calls!.push(`readImageFile:${path}`);
+    return ok(Array.from(atob(PNG_1PX), (c) => c.charCodeAt(0)));
+  },
+  async listSignatures(): Promise<SavedSignature[]> {
+    return clone(savedSignatures);
+  },
+  async saveSignature(png: number[], width: number, height: number): Res<SavedSignature> {
+    const s = { id: `sig${savedSignatures.length + 1}`, created: Date.UTC(2026, 8, 14), width, height, data: `data:image/png;base64,${PNG_1PX}` };
+    savedSignatures = [s, ...savedSignatures];
+    e2e.calls!.push(`saveSignature:${png.length > 0}`);
+    return ok(s);
+  },
+  async deleteSignature(id: string): Res<null> {
+    savedSignatures = savedSignatures.filter((s) => s.id !== id);
+    return ok(null);
   },
   async copyImage(_from: number, _to: number, _key: string): Res<null> {
     return ok(null);

@@ -4,20 +4,27 @@ import { BackendError, inTauri } from "../lib/api";
 import { type DocTab, useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 
-async function pickSavePath(tab: DocTab): Promise<string | null> {
+async function pickSavePath(defaultPath: string): Promise<string | null> {
   if (!inTauri) return (window as unknown as { __FEUILLET_E2E__?: { savePath?: string } }).__FEUILLET_E2E__?.savePath ?? null;
   const { save } = await import("@tauri-apps/plugin-dialog");
-  return save({ defaultPath: tab.path, filters: [{ name: "PDF", extensions: ["pdf"] }] });
+  return save({ defaultPath, filters: [{ name: "PDF", extensions: ["pdf"] }] });
 }
 
-/** Enregistre ; `saveAs` demande un nouveau chemin. Renvoie vrai si le document est enregistré. */
-export async function saveTab(tab: DocTab, saveAs = false): Promise<boolean> {
+/** Chemin proposé pour une copie : « contrat (copie).pdf ». */
+export function copyPath(path: string): string {
+  const copy = i18n.global.t("save.copySuffix");
+  return /\.pdf$/i.test(path) ? path.replace(/\.pdf$/i, ` (${copy}).pdf`) : `${path} (${copy})`;
+}
+
+/** Enregistre ; `saveAs` demande un nouveau chemin (proposé : `defaultPath`). Renvoie vrai si
+ * le document est enregistré. */
+export async function saveTab(tab: DocTab, saveAs = false, defaultPath = tab.path): Promise<boolean> {
   const t = i18n.global.t;
   const ui = useUi();
   if (!tab.info || tab.status !== "ready") return false;
   let path: string | null = null;
   if (saveAs) {
-    path = await pickSavePath(tab);
+    path = await pickSavePath(defaultPath);
     if (!path) return false;
   } else if (!tab.dirty) {
     return true;

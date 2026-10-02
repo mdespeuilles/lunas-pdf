@@ -1,7 +1,11 @@
 <script setup lang="ts">
 // Préférences (pas de planche dédiée : composée avec les composants et tokens du design).
-import { Check } from "lucide-vue-next";
+import { Check, X } from "lucide-vue-next";
+import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import type { TrustedRoot } from "../bindings";
+import { commands, inTauri, unwrap } from "../lib/api";
+import { useTabs } from "../stores/tabs";
 import Modal from "./Modal.vue";
 import { ACCENTS, useSettings } from "../stores/settings";
 import { useUi } from "../stores/ui";
@@ -9,6 +13,18 @@ import { useUi } from "../stores/ui";
 const { t } = useI18n();
 const settings = useSettings();
 const ui = useUi();
+const tabs = useTabs();
+
+// Autorités de signature approuvées depuis le panneau « Signature numérique ».
+const trusted = ref<TrustedRoot[]>([]);
+onMounted(async () => {
+  if (inTauri || "__FEUILLET_E2E__" in window) trusted.value = await commands.listTrustedRoots();
+});
+async function untrust(r: TrustedRoot) {
+  await unwrap(commands.removeTrustedRoot(r.id));
+  trusted.value = trusted.value.filter((x) => x.id !== r.id);
+  await tabs.reloadAllSignatures();
+}
 </script>
 
 <template>
@@ -69,6 +85,18 @@ const ui = useUi();
         <span class="hint">{{ t("prefs.windowControlsHint") }}</span>
       </span>
     </label>
+    <div v-if="trusted.length" class="field trusted">
+      <span>
+        <span class="ttl">{{ t("prefs.trustedRoots") }}</span>
+        <span class="hint">{{ t("prefs.trustedRootsHint") }}</span>
+      </span>
+      <ul>
+        <li v-for="r in trusted" :key="r.id">
+          <span class="nm" :title="r.id">{{ r.name }}</span>
+          <button class="cl" :aria-label="t('prefs.untrust', { name: r.name })" :title="t('prefs.untrust', { name: r.name })" @click="untrust(r)"><X class="ic xs" aria-hidden="true" /></button>
+        </li>
+      </ul>
+    </div>
   </Modal>
 </template>
 
@@ -88,4 +116,8 @@ select.input { min-width: 180px; }
 .check:focus-within .cb { box-shadow: inset 0 0 0 1.5px var(--line-2), var(--ring); }
 .ttl { display: block; font-weight: 500; }
 .hint { display: block; color: var(--text-2); font-size: 12px; margin-top: 2px; }
+.trusted { flex-direction: column; align-items: stretch; gap: 8px; }
+.trusted ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.trusted li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 4px 10px; border-radius: 7px; background: var(--hover); }
+.trusted .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

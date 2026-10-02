@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, reactive, ref } from "vue";
 import { Channel } from "@tauri-apps/api/core";
-import type { Annot, AnnotOp, DocInfo, EditState, OutlineItem, PdfError, Rect, SearchEvent, SearchHit } from "../bindings";
+import type { Annot, AnnotOp, DocInfo, EditState, OutlineItem, PdfError, Rect, SearchEvent, SearchHit, SignatureInfo } from "../bindings";
 import { BackendError, commands, unwrap } from "../lib/api";
 import { bitmaps } from "../lib/bitmap-cache";
 import { dropDocData } from "../lib/page-data";
@@ -60,6 +60,12 @@ export interface DocTab {
   formFocus: { id: string; seq: number } | null;
   /** Bandeau « Ce document contient un formulaire » masqué. */
   formBannerHidden: boolean;
+  /** Signatures numériques vérifiées (null : pas encore lues). */
+  signatures: SignatureInfo[] | null;
+  /** Panneau « Signature numérique » ouvert, signature mise en avant, bandeau masqué. */
+  sigPanel: boolean;
+  sigSelected: number;
+  sigBannerHidden: boolean;
   /** Position de défilement mémorisée (changement d'onglet). */
   scroll?: { top: number; left: number };
 }
@@ -106,6 +112,10 @@ export const useTabs = defineStore("tabs", () => {
       focusedField: null,
       formFocus: null,
       formBannerHidden: false,
+      signatures: null,
+      sigPanel: false,
+      sigSelected: 0,
+      sigBannerHidden: false,
     }) as DocTab;
   }
 
@@ -118,6 +128,7 @@ export const useTabs = defineStore("tabs", () => {
       tab.name = tab.info.name;
       // Formulaire : champs chargés d'emblée pour la saisie.
       if (tab.info.form === "acroForm") void loadAnnotations(tab);
+      if (tab.info.signatureCount > 0) void loadSignatures(tab);
     } catch (e) {
       const err = e instanceof BackendError ? e.error : ({ kind: "engine", message: String(e) } as PdfError);
       if (err.kind === "passwordRequired" || err.kind === "wrongPassword") {
@@ -128,6 +139,21 @@ export const useTabs = defineStore("tabs", () => {
         tab.error = err;
       }
     }
+  }
+
+  async function loadSignatures(tab: DocTab) {
+    if (!tab.info) return;
+    try {
+      tab.signatures = await unwrap(commands.getSignatures(tab.info.id));
+    } catch (e) {
+      console.error(e);
+      tab.signatures = [];
+    }
+  }
+
+  /** Revérifie les signatures de tous les onglets (autorités approuvées modifiées). */
+  async function reloadAllSignatures() {
+    await Promise.all(tabs.value.filter((t) => t.info?.signatureCount).map((t) => loadSignatures(t)));
   }
 
   async function openPaths(paths: string[]) {
@@ -286,6 +312,7 @@ export const useTabs = defineStore("tabs", () => {
       }
     });
     await loadAnnotations(tab);
+    if (tab.info?.signatureCount) await loadSignatures(tab);
   }
 
   // --- Recherche ---------------------------------------------------------------------------
@@ -361,6 +388,8 @@ export const useTabs = defineStore("tabs", () => {
     toggleSidebar,
     loadOutline,
     loadAnnotations,
+    loadSignatures,
+    reloadAllSignatures,
     applyOps,
     addAnnot,
     updateAnnot,

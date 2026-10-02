@@ -16,6 +16,7 @@ const DEFAULTS: Settings = {
   sidebarOpen: true,
   authorName: "",
   highlightFields: true,
+  signedOk: [],
 };
 
 /** Accents proposés par le design (props de la planche). */

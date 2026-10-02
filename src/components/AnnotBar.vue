@@ -10,6 +10,8 @@ import Dropdown from "./Dropdown.vue";
 import { inTauri, commands, unwrap } from "../lib/api";
 import { PALETTE, SIZES, WIDTHS, type Tool, useAnnotTools, colorFor } from "../stores/annotTools";
 import { type DocTab, useTabs } from "../stores/tabs";
+import { placeImageBytes } from "../composables/place-signature";
+import { useSignatures } from "../stores/signatures";
 import { useUi } from "../stores/ui";
 
 const props = defineProps<{ tab: DocTab }>();
@@ -17,6 +19,7 @@ const { t } = useI18n();
 const tools = useAnnotTools();
 const tabs = useTabs();
 const ui = useUi();
+const sigs = useSignatures();
 
 interface ToolDef {
   tool: Tool;
@@ -58,8 +61,11 @@ function showTip(d: ToolDef, e: Event) {
 }
 
 async function pick(tool: Tool) {
+  tools.cancelPlacing();
   if (tool === "signature") {
-    ui.notify(t("annot.signatureSoon"));
+    // Menu des signatures sous le bouton S (planche 07).
+    const r = bar.value?.querySelector<HTMLElement>("[data-tool='signature']")?.getBoundingClientRect();
+    sigs.picker = { tabKey: props.tab.key, x: r?.left ?? 200, y: (r?.bottom ?? 100) + 6, target: null };
     return;
   }
   if (tool === "image") {
@@ -70,7 +76,7 @@ async function pick(tool: Tool) {
   props.tab.selected = null;
 }
 
-/** Outil « Tampon ou image » : choix du fichier puis pose au centre de la page courante. */
+/** Outil « Tampon ou image » : choix du fichier puis pose au clic. */
 async function placeImage() {
   if (!props.tab.info) return;
   let path: string | null = null;
@@ -83,19 +89,8 @@ async function placeImage() {
   }
   if (!path) return;
   try {
-    const img = await unwrap(commands.importImage(props.tab.info.id, path));
-    const page = props.tab.page;
-    const g = props.tab.info.pages[page];
-    const w = Math.min(160, g.width * 0.6);
-    const h = (w * img.height) / img.width;
-    const rect = { x: (g.width - w) / 2, y: (g.height - h) / 2, w, h };
-    const id = crypto.randomUUID();
-    await tabs.addAnnot(props.tab, {
-      id, page, rect, color: "#000000", opacity: 1, width: 1, contents: null, author: null, modified: null, excerpt: null,
-      body: { type: "image", image: img.key }, hidden: false,
-    });
-    tools.tool = "select";
-    props.tab.selected = id;
+    const bytes = new Uint8Array(await unwrap(commands.readImageFile(path)));
+    await placeImageBytes(props.tab, bytes, { maxW: 160, mime: /\.jpe?g$/i.test(path) ? "image/jpeg" : "image/png" });
   } catch (e) {
     ui.notify(String(e));
   }
@@ -114,6 +109,7 @@ const ctx = computed(() => {
 });
 
 function done() {
+  tools.cancelPlacing();
   tabs.toggleAnnotating(props.tab, false);
   tools.tool = "select";
 }
@@ -145,9 +141,11 @@ function done() {
       <button
         v-else
         class="tb"
-        :class="{ on: tools.tool === d.tool, soon: d.tool === 'signature' }"
+        :class="{ on: tools.tool === d.tool || (d.tool === 'signature' && !!sigs.picker) }"
         :aria-label="label(d)"
         :aria-pressed="tools.tool === d.tool"
+        :aria-haspopup="d.tool === 'signature' ? 'menu' : undefined"
+        :data-tool="d.tool"
         @click="pick(d.tool)"
         @mouseenter="showTip(d, $event)"
         @focus="showTip(d, $event)"
@@ -225,7 +223,6 @@ function done() {
 <style scoped>
 .annobar { display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 10px; background: var(--bg); border-bottom: 1px solid var(--line); flex: none; position: relative; z-index: 4; min-width: 0; }
 .tb .fly { position: absolute; right: 3px; bottom: 3px; width: 0; height: 0; border-left: 4px solid transparent; border-bottom: 4px solid currentColor; opacity: .6; }
-.tb.soon { opacity: .55; }
 .ctxl { font-size: 12px; color: var(--text-3); margin-right: 2px; white-space: nowrap; }
 .sel-s { position: relative; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 10px; border-radius: 7px; background: var(--hover); font-size: 12.5px; color: var(--text); }
 .sel-s select { appearance: none; -webkit-appearance: none; border: 0; background: transparent; color: inherit; font: inherit; padding: 0 16px 0 0; margin-right: -16px; cursor: default; }

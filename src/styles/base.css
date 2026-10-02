@@ -102,3 +102,8 @@ button { font: inherit; color: inherit; cursor: default; }
 /* Listes déroulantes natives lisibles dans les deux thèmes (WebKitGTK). */
 select { color-scheme: inherit; }
 select option { background: var(--surface); color: var(--text); }
+
+/* Polices de la signature tapée (planche 07), embarquées : voir src/assets/fonts/README.md. */
+@font-face { font-family: "Allura"; src: url("../assets/fonts/Allura-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Caveat"; src: url("../assets/fonts/Caveat.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "Homemade Apple"; src: url("../assets/fonts/HomemadeApple-Regular.ttf") format("truetype"); font-display: swap; }

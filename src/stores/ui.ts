@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-export type AskKind = "unsaved" | "redact";
-export type AskAnswer = "save" | "discard" | "cancel" | "confirm";
+export type AskKind = "unsaved" | "redact" | "signedAnnotate" | "signedFill";
+export type AskAnswer = "save" | "discard" | "cancel" | "confirm" | "copy";
 
 /** État d'interface global : dialogues et messages éphémères. */
 export const useUi = defineStore("ui", () => {
@@ -10,6 +10,8 @@ export const useUi = defineStore("ui", () => {
   const aboutOpen = ref(false);
   const toast = ref<{ text: string; seq: number } | null>(null);
   const ask = ref<{ kind: AskKind; tabKey: string; resolve: (a: AskAnswer) => void } | null>(null);
+  /** Case « Ne plus demander pour ce document » du dernier dialogue. */
+  const askRemember = ref(false);
   let seq = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -22,6 +24,7 @@ export const useUi = defineStore("ui", () => {
   /** Ouvre un dialogue de confirmation et attend la réponse. */
   function askUser(kind: AskKind, tabKey: string): Promise<AskAnswer> {
     ask.value?.resolve("cancel");
+    askRemember.value = false;
     return new Promise((resolve) => {
       ask.value = {
         kind,
@@ -34,5 +37,5 @@ export const useUi = defineStore("ui", () => {
     });
   }
 
-  return { prefsOpen, aboutOpen, toast, ask, notify, askUser };
+  return { prefsOpen, aboutOpen, toast, ask, askRemember, notify, askUser };
 });

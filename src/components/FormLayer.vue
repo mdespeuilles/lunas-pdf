@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // Champs de formulaire d'une page (planche 04) : saisie au-dessus du rendu PDFium. Hors
 // focus, les contrôles sont transparents et laissent voir l'apparence générée par le moteur.
+import { PenLine } from "lucide-vue-next";
 import { computed, nextTick, onMounted, reactive, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type { FormField, Widget } from "../bindings";
 import { fillable, stops, useForm } from "../composables/form";
 import { type Parsed, allowInput, editText, parseInput } from "../lib/field-format";
 import { useSettings } from "../stores/settings";
+import { useSignatures } from "../stores/signatures";
 import { useUi } from "../stores/ui";
 import type { DocTab } from "../stores/tabs";
 
@@ -14,6 +16,7 @@ const props = defineProps<{ tab: DocTab; page: number; k: number }>();
 const settings = useSettings();
 const form = useForm();
 const ui = useUi();
+const sigs = useSignatures();
 const { t, locale } = useI18n();
 
 const FONT_CSS = { sans: "Helvetica, Arial, 'Liberation Sans', sans-serif", serif: "'Times New Roman', Times, 'Liberation Serif', serif", mono: "'Courier New', Courier, 'Liberation Mono', monospace" } as const;
@@ -50,6 +53,21 @@ const items = computed<Item[]>(() => {
   return out;
 });
 
+/** Champs de signature vides (sans signature numérique ni image posée dessus). */
+const sigFields = computed(() => {
+  const signed = new Set((props.tab.signatures ?? []).map((s) => s.field));
+  const images = (props.tab.edit?.annots ?? []).filter((a) => a.page === props.page && a.body.type === "image");
+  const overlaps = (w: Widget) => images.some((a) => a.rect.x < w.rect.x + w.rect.w && w.rect.x < a.rect.x + a.rect.w && a.rect.y < w.rect.y + w.rect.h && w.rect.y < a.rect.y + a.rect.h);
+  return fields.value
+    .filter((f) => f.kind.type === "signature" && !f.readOnly && !signed.has(f.id))
+    .flatMap((f) => f.widgets.filter((w) => w.page === props.page && !overlaps(w)).map((w, i) => ({ key: `${f.id}#${i}`, field: f, widget: w })));
+});
+
+function sign(w: Widget, e: MouseEvent) {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  sigs.picker = { tabKey: props.tab.key, x: r.left, y: r.bottom + 6, target: { page: w.page, rect: w.rect } };
+}
+
 /** Saisie en cours (non encore validée) par champ, et champs dont le rendu se met à jour. */
 const drafts = reactive<Record<string, string>>({});
 const pending = reactive(new Set<string>());
@@ -77,10 +95,11 @@ function textStyle(it: Item) {
   };
 }
 
-async function commit(f: FormField, value: string[]) {
+async function commit(f: FormField, value: string[], input?: HTMLInputElement | HTMLTextAreaElement | null) {
   pending.add(f.id);
   try {
-    await form.setValue(props.tab, f.id, value);
+    // Refus (document signé) : la saisie affichée revient à la valeur du champ.
+    if (!(await form.setValue(props.tab, f.id, value)) && input) input.value = editText(f, f.value[0] ?? "");
   } finally {
     delete drafts[f.id];
     // Laisse le temps au nouveau rendu d'arriver avant de redevenir transparent.
@@ -113,7 +132,7 @@ function commitText(f: FormField, el?: EventTarget | null) {
   } else if (r.value === (f.value[0] ?? "")) {
     restore();
   } else {
-    void commit(f, [r.value]);
+    void commit(f, [r.value], input);
   }
 }
 
@@ -174,6 +193,17 @@ onMounted(applyFocus);
 
 <template>
   <div class="flayer" :class="{ hlf: settings.settings.highlightFields }">
+    <button
+      v-for="s in sigFields"
+      :key="s.key"
+      class="ff sigf"
+      :style="box(s.widget)"
+      :aria-label="`${label(s.field)} : ${t('signature.clickToSign')}`"
+      :data-field-id="s.field.id"
+      @click="sign(s.widget, $event)"
+    >
+      <PenLine class="ic xs" aria-hidden="true" />{{ t("signature.clickToSign") }}
+    </button>
     <template v-for="it in items" :key="it.key">
       <textarea
         v-if="it.control === 'multiline'"
@@ -267,6 +297,8 @@ input.ff:focus, textarea.ff:focus, .ff.pending { background: #fff; color: #1b1b2
 .ff.btn { padding: 0; cursor: pointer; }
 .ff.btn:focus { background: transparent; }
 .ff.comb { letter-spacing: .3em; }
+.sigf { display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font: 11px system-ui, sans-serif; color: #6a6a72; border: 1px dashed #8a8a92; }
+.hlf .sigf { color: color-mix(in oklab, var(--accent) 80%, black); border-color: color-mix(in oklab, var(--accent) 60%, white); }
 .sel select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .sel option { color: #1b1b20; background: #fff; }
 </style>

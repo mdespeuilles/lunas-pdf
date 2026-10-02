@@ -6,9 +6,12 @@ import { useI18n } from "vue-i18n";
 import AnnotBar from "./AnnotBar.vue";
 import DocViewport from "./DocViewport.vue";
 import FormBanner from "./FormBanner.vue";
+import SignatureBanner from "./SignatureBanner.vue";
+import SignaturePanel from "./SignaturePanel.vue";
 import Sidebar from "./Sidebar.vue";
 import Toolbar from "./Toolbar.vue";
 import UnlockCard from "./UnlockCard.vue";
+import { hasFormContent } from "../composables/form";
 import { type DocTab, useTabs } from "../stores/tabs";
 
 const props = defineProps<{ tab: DocTab }>();
@@ -36,7 +39,8 @@ defineExpose({
   <section class="reader">
     <Toolbar ref="toolbar" :tab="tab" :disabled="tab.status !== 'ready'" />
     <AnnotBar v-if="tab.annotating && tab.status === 'ready'" :tab="tab" />
-    <FormBanner v-if="tab.status === 'ready' && tab.edit?.fields.length && !tab.annotating && !tab.formBannerHidden" :tab="tab" />
+    <SignatureBanner v-if="tab.status === 'ready' && tab.signatures?.length && !tab.sigBannerHidden" :tab="tab" />
+    <FormBanner v-if="tab.status === 'ready' && hasFormContent(tab) && !tab.annotating && !tab.formBannerHidden" :tab="tab" />
     <div v-if="tab.status === 'ready' && tab.info?.form === 'xfa' && !xfaDismissed" class="banner warn" role="status">
       <TriangleAlert class="ic bi" aria-hidden="true" />
       <span>{{ t("errors.xfa") }}</span>
@@ -49,6 +53,7 @@ defineExpose({
       <template v-if="tab.status === 'ready' && tab.info">
         <Sidebar v-if="tab.sidebarOpen" :tab="tab" />
         <DocViewport :tab="tab" />
+        <SignaturePanel v-if="tab.sigPanel && tab.signatures?.length" :tab="tab" />
       </template>
       <UnlockCard v-else-if="tab.status === 'locked'" :key="tab.key" :tab="tab" />
       <div v-else-if="tab.status === 'error'" class="center">

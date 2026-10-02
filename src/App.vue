@@ -4,6 +4,9 @@ import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AboutDialog from "./components/AboutDialog.vue";
 import AskDialog from "./components/AskDialog.vue";
+import SignatureDialog from "./components/SignatureDialog.vue";
+import SignaturePicker from "./components/SignaturePicker.vue";
+import { useSignatures } from "./stores/signatures";
 import HomeView from "./components/HomeView.vue";
 import PreferencesDialog from "./components/PreferencesDialog.vue";
 import ReaderView from "./components/ReaderView.vue";
@@ -23,6 +26,7 @@ import { bootLog } from "./boot";
 const { t } = useI18n();
 const tabs = useTabs();
 const ui = useUi();
+const sigs = useSignatures();
 const settings = useSettings();
 const recents = useRecents();
 const dragging = ref(false);
@@ -71,6 +75,8 @@ tabs.$onAction(({ name, after }) => {
     <PreferencesDialog v-if="ui.prefsOpen" />
     <AboutDialog v-if="ui.aboutOpen" />
     <AskDialog v-if="ui.ask" />
+    <SignaturePicker v-if="sigs.picker" />
+    <SignatureDialog v-if="sigs.dialog" />
     <div v-if="ui.toast" :key="ui.toast.seq" class="toast" role="status">{{ ui.toast.text }}</div>
   </div>
 </template>

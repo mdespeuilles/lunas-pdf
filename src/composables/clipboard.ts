@@ -6,6 +6,7 @@ import { commands, unwrap } from "../lib/api";
 import { canCopy, pasted } from "../lib/annot-geom";
 import { useAnnotTools } from "../stores/annotTools";
 import { type DocTab, useTabs } from "../stores/tabs";
+import { guardSigned } from "./signed";
 
 const STEP = 12;
 
@@ -57,6 +58,7 @@ export function useAnnotClipboard() {
     const copy = pasted(c.annot, page, geom.width, geom.height, n * STEP);
     try {
       if (copy.body.type === "image" && doc !== c.doc) await unwrap(commands.copyImage(c.doc, doc, copy.body.image));
+      if (!tab.annotating && !(await guardSigned(tab, "annotate"))) return;
       if (!tab.edit) await tabs.loadAnnotations(tab);
       tabs.toggleAnnotating(tab, true);
       tools.tool = "select";

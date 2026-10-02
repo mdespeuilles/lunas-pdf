@@ -11,6 +11,7 @@ import Dropdown from "./Dropdown.vue";
 import SearchBox from "./SearchBox.vue";
 import { ZOOM_PRESETS } from "../lib/layout";
 import { percent } from "../lib/format";
+import { toggleAnnotate } from "../composables/signed";
 import { type DocTab, useTabs } from "../stores/tabs";
 
 const props = defineProps<{ tab: DocTab; disabled?: boolean }>();
@@ -133,7 +134,7 @@ defineExpose({
         :aria-pressed="tab.annotating"
         :aria-label="t('toolbar.annotateKey')"
         :title="t('toolbar.annotateKey')"
-        @click="tabs.toggleAnnotating(tab)"
+        @click="toggleAnnotate(tab)"
       >
         <PenLine class="ic" aria-hidden="true" />{{ t("toolbar.annotate") }}
       </button>

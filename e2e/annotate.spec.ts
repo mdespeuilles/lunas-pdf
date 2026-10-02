@@ -166,7 +166,23 @@ test("caviardage : confirmation avant l'enregistrement", async ({ page }) => {
 test("tampon image (I) et Enregistrer sous", async ({ page }) => {
   await start(page);
   await page.keyboard.press("i");
+  // L'image suit le curseur jusqu'au clic ; Échap annule.
+  const box = (await page.locator(".page[data-page='0']").boundingBox())!;
+  await page.mouse.move(box.x + 200, box.y + 200);
+  await expect(page.locator(".page[data-page='0'] .ghost")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".ghost")).toHaveCount(0);
+  await page.mouse.click(box.x + 200, box.y + 200);
+  expect((await model(page)).filter((a) => a.body.type === "image")).toHaveLength(0);
+  await page.keyboard.press("i");
+  await page.mouse.move(box.x + 300, box.y + 400, { steps: 3 });
+  await page.mouse.click(box.x + 300, box.y + 400);
   await expect.poll(async () => (await model(page)).filter((a) => a.body.type === "image").length).toBe(1);
+  // Centrée sous le curseur (coordonnées en points : px / échelle de la page).
+  const k = box.width / 595.28;
+  const r = (await model(page)).find((a) => a.body.type === "image").rect;
+  expect(Math.abs(r.x + r.w / 2 - 300 / k)).toBeLessThan(1.5);
+  expect(Math.abs(r.y + r.h / 2 - 400 / k)).toBeLessThan(1.5);
   await page.keyboard.press("Control+Shift+s");
   await expect(page.getByRole("tab", { name: /copie\.pdf/ })).toBeVisible();
   expect(await calls(page)).toContain("save:/docs/copie.pdf");

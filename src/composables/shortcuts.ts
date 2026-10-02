@@ -9,6 +9,7 @@ import { stops, useForm } from "./form";
 import { markupFromSelection } from "./markup";
 import { openFromDialog } from "./open";
 import { requestClose, saveTab } from "./save";
+import { toggleAnnotate } from "./signed";
 
 export interface ReaderHandle {
   focusSearch(): void;
@@ -47,7 +48,7 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
 
     // Enregistrement et annotation
     if (ctrl && key === "s") return run(e, () => saveTab(tab, e.shiftKey));
-    if (ctrl && e.shiftKey && key === "a") return run(e, () => tabs.toggleAnnotating(tab));
+    if (ctrl && e.shiftKey && key === "a") return run(e, () => toggleAnnotate(tab));
     if (!typing && ctrl && (key === "y" || (key === "z" && e.shiftKey))) return run(e, () => tabs.redo(tab));
     if (!typing && ctrl && key === "z") return run(e, () => tabs.undo(tab));
     // Presse-papiers des annotations ; sans annotation sélectionnée, Ctrl C copie le texte.
@@ -67,6 +68,7 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
       }
       if (e.key === "Escape") return run(e, () => (tab.selected = null));
     }
+    if (e.key === "Escape" && tools.placing) return run(e, () => tools.cancelPlacing());
     if (!typing && !ctrl && !e.altKey && tab.annotating) {
       if (e.key === "Escape" && tools.tool !== "select") return run(e, () => (tools.tool = "select"));
       const tool = TOOL_KEYS[key];

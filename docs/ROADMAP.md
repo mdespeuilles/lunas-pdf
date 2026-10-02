@@ -33,7 +33,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 |---|---|---|
 | Bouton Annoter (Ctrl Maj A), barre d'outils secondaire, « Terminé » | ✅ | Infobulles nom + touche |
 | V H U K T N R O L A C X | ✅ | H/U/K : glisser sur le texte, ou touche sur une sélection ; surlignage de zone sur les scans. Outils de pose à usage unique (retour à la sélection) ; H/U/K restent actifs |
-| S (signature) | ⬜ | Phase 4 (bouton présent, message explicatif) |
+| S (signature) | ✅ | Phase 4 |
 | I (tampon ou image) | ✅ | PNG (transparence conservée) et JPEG |
 | Panneau contextuel : 6 couleurs, épaisseur, police, taille, symbole | ✅ | |
 | Survol, sélection, 8 poignées (2 pour les lignes), déplacement, redimensionnement | ✅ | Maj : 45° pour les lignes, proportions conservées ; flèches du clavier : déplacement de 1 pt (10 avec Maj) |
@@ -53,7 +53,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - La confirmation du caviardage n'a pas de planche dédiée : elle reprend la modale de la planche 12.
 - L'historique d'annulation est vidé après « Enregistrer ».
 
-## Phase 3 : formulaires ✅ (en attente de validation)
+## Phase 3 : formulaires ✅ (validée)
 
 | Fonction | État | Notes |
 |---|---|---|
@@ -76,11 +76,29 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - Les champs non saisissables en mode annotation : les outils prennent la main sur la page.
 - Texte hors WinAnsi : « ? » dans l'apparence, comme pour les zones de texte (le texte exact reste dans `/V`).
 
-## Phase 4 : signatures ⬜
+## Phase 4 : signatures ✅ (en attente de validation)
 
-- Signature manuscrite : Dessiner, Importer, Taper ; signatures enregistrées.
-- Vérification de l'intégrité des signatures numériques (`/ByteRange` + CMS), 3 bandeaux, panneau de détails.
-- Avertissement avant d'annoter un document signé, enregistrement incrémental.
+| Fonction | État | Notes |
+|---|---|---|
+| Vérification des signatures numériques : `/ByteRange`, empreinte, signature CMS (RSA PKCS#1 v1.5, RSA-PSS, ECDSA P-256 / P-384 ; SHA-1 à SHA-512) | ✅ | RustCrypto (`cms`, `x509-cert`, `rsa`, `p256`, `p384`) ; vérifié sur les fixtures pyHanko (valide, altéré, annoté après signature) ; 🟡 RSA-PSS et ECDSA sans fixture |
+| Chaîne de certificats jusqu'au magasin du système, validité à la date de signature | ✅ | `rustls-native-certs` ; pas de contrôle de révocation (CRL, OCSP) |
+| CMS encodé en BER (longueurs indéfinies : Dropbox Sign…) | ✅ | Réencodé en DER avant analyse |
+| Autorités de signature approuvées par l'utilisateur (panneau, après confirmation de l'empreinte ; retrait dans les préférences) | ✅ | Le magasin du système ne contient que des autorités web : Notarius (Dropbox Sign), par exemple, n'y figure pas. La liste d'Adobe (AATL) n'est pas redistribuable |
+| Échec de lecture ou algorithme inconnu : « non vérifiable », pas « invalide » | ✅ | « Invalide » est réservé au contenu modifié ou à une plage signée incohérente |
+| Horodatage RFC 3161 : empreinte et signature du jeton | ✅ | 🟡 sans fixture horodatée |
+| 3 bandeaux (valide, invalide, non vérifiable), panneau de détails (planche 05), certificat, copie des détails | ✅ | « Valide, des ajouts ont été faits depuis » pour une révision ajoutée après signature |
+| Avertissement avant d'annoter ou de remplir un document signé (planche 06) : annuler, quand même, sur une copie ; « Ne plus demander » | ✅ | Mémorisé par chemin dans les préférences |
+| Enregistrement incrémental : la partie signée reste intacte | ✅ | Déjà le cas depuis la phase 2 (sauf caviardage, qui réécrit le fichier et le signale) |
+| Signature manuscrite (planche 07) : Dessiner (encre, épaisseur, pression du stylet), Importer (PNG, JPG, SVG, fond blanc retiré), Taper (3 polices embarquées) | ✅ | Tampon image qui suit le curseur jusqu’au clic (Échap annule), puis déplaçable et redimensionnable ; même pose pour l’outil Image (I) |
+| Signatures enregistrées : menu de l'outil S, réutilisation, suppression | ✅ | PNG dans le dossier de configuration (`signatures/`) |
+| Champs de signature des formulaires : « Cliquer pour signer » | ✅ | La signature manuscrite est ajustée dans le champ |
+
+Écarts et limites :
+- Le texte de l'avertissement diffère de la planche 06 : celle-ci annonce que la modification « invalidera » la signature. Comme Feuillet enregistre en incrémental, la version signée reste vérifiable ; le texte le dit.
+- Une signature manuscrite est une image, pas une signature numérique : créer une signature numérique (certificat, PAdES) n'est pas prévu.
+- Le type de signature enregistrée (« Signature » / « Paraphe » sur la planche) n'est pas distingué : toutes s'appellent « Signature ».
+- Révocation des certificats (CRL, OCSP) et listes de confiance européennes (EUTL) non consultées.
+- Pas de détail des modifications faites après la signature (Acrobat distingue les modifications autorisées).
 
 ## Phase 5 : organisation des pages ⬜
 

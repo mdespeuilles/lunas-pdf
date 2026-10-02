@@ -10,7 +10,7 @@ import { FREETEXT_LEADING, FREETEXT_PAD, fitTextBox, wrap } from "../lib/afm";
 import AnnotPreview from "./AnnotPreview.vue";
 import { useAnnotClipboard } from "../composables/clipboard";
 import {
-  BOX_HANDLES, type Handle, canCopy, canMove, canResize, handlePos, hitRects, moved, rectFrom, resized, snap45,
+  BOX_HANDLES, type Handle, canCopy, canMove, canResize, clampRect, handlePos, hitRects, moved, rectFrom, resized, snap45,
 } from "../lib/annot-geom";
 import { PALETTE, type PaletteKey, SIZES, WIDTHS, colorFor, familyOf, paletteKeyOf, useAnnotTools } from "../stores/annotTools";
 import { type DocTab, useTabs } from "../stores/tabs";
@@ -106,7 +106,37 @@ async function refreshRange() {
   }
 }
 
+// --- Pose d'une image (signature, tampon) au clic ---------------------------------------------
+const placing = computed(() => (interactive.value && tools.placing?.tabKey === props.tab.key ? tools.placing : null));
+
+function ghostRect(p: Point): Rect {
+  const pl = placing.value!;
+  return clampRect({ x: p.x - pl.w / 2, y: p.y - pl.h / 2, w: pl.w, h: pl.h }, props.pageW, props.pageH);
+}
+
+async function place(p: Point) {
+  const pl = placing.value!;
+  const rect = ghostRect(p);
+  tools.cancelPlacing();
+  const id = crypto.randomUUID();
+  await tabs.addAnnot(props.tab, {
+    id, page: props.page, rect, color: "#000000", opacity: 1, width: 1, contents: null, author: null, modified: null, excerpt: null,
+    body: { type: "image", image: pl.key }, hidden: false,
+  });
+  props.tab.selected = id;
+}
+
+function onLayerLeave() {
+  if (tools.placingAt?.page === props.page) tools.placingAt = null;
+}
+
 function onLayerDown(e: PointerEvent) {
+  if (placing.value) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    void place(toPt(e));
+    return;
+  }
   if (!creating.value || e.button !== 0) return;
   e.preventDefault();
   if (editing.value || noteEdit.value) {
@@ -143,6 +173,10 @@ function onLayerDown(e: PointerEvent) {
 }
 
 function onLayerMove(e: PointerEvent) {
+  if (placing.value) {
+    tools.placingAt = { page: props.page, ...toPt(e) };
+    return;
+  }
   const d = draft.value;
   if (!d) return;
   let p = toPt(e);
@@ -471,12 +505,14 @@ defineExpose({ duplicate, remove, startEdit });
   <div
     ref="layer"
     class="alayer"
-    :class="{ creating, ['tool-' + tools.tool]: creating, grabbing: drag?.handle === 'move' }"
+    :class="{ creating, ['tool-' + tools.tool]: creating, grabbing: drag?.handle === 'move', placing: !!placing }"
     :aria-label="t('annot.layer', { n: page + 1 })"
     @pointerdown="onLayerDown"
     @pointermove="onLayerMove"
+    @pointerleave="onLayerLeave"
     @pointerup="onLayerUp"
   >
+    <img v-if="placing && tools.placingAt?.page === page" class="ghost" :src="placing.url" alt="" :style="css(ghostRect(tools.placingAt))" />
     <!-- Notes : contenu au survol, même hors mode annotation. -->
     <template v-if="!interactive">
       <span v-for="a in annots.filter((x) => x.body.type === 'note' && x.contents)" :key="a.id" class="note-tip" :style="css(a.rect)" :title="a.contents ?? ''" />
@@ -596,6 +632,10 @@ defineExpose({ duplicate, remove, startEdit });
 <style scoped>
 .alayer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .alayer.creating { pointer-events: auto; cursor: crosshair; }
+/* Pose d'une image : l'aperçu suit le curseur, les annotations existantes ne captent pas le clic. */
+.alayer.placing { pointer-events: auto; cursor: copy; }
+.alayer.placing :deep(*) { pointer-events: none; }
+.ghost { position: absolute; z-index: 5; opacity: .8; outline: 1px dashed var(--accent); outline-offset: 2px; pointer-events: none; }
 /* Outil zone de texte : « T » encadré, distinct du curseur en I de la sélection. */
 .alayer.tool-text { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='3' fill='white' stroke='%231b1b20' stroke-width='1.5'/%3E%3Cpath d='M7.5 7.5h9M12 7.5v9' stroke='%231b1b20' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") 12 12, crosshair; }
 .alayer.tool-note, .alayer.tool-check { cursor: copy; }

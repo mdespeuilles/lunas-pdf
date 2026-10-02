@@ -51,6 +51,8 @@ pub struct Settings {
     pub author_name: String,
     /// Fond teinté sur les champs de formulaire (bandeau de la planche 04).
     pub highlight_fields: bool,
+    /// Documents signés pour lesquels l'avertissement avant modification est désactivé.
+    pub signed_ok: Vec<String>,
 }
 
 impl Default for Settings {
@@ -64,6 +66,7 @@ impl Default for Settings {
             sidebar_open: true,
             author_name: String::new(),
             highlight_fields: true,
+            signed_ok: vec![],
         }
     }
 }
@@ -85,6 +88,31 @@ pub struct RecentDoc {
 
 const MAX_RECENTS: usize = 30;
 
+/// Autorité de certification approuvée par l'utilisateur pour vérifier les signatures.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustedRoot {
+    /// Empreinte SHA-256 (« 4F:2A:… »), aussi nom du fichier.
+    pub id: String,
+    pub name: String,
+    /// Date d'ajout (millisecondes Unix).
+    pub added: f64,
+}
+
+/// Signature manuscrite enregistrée (planche 07) : image PNG à fond transparent.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedSignature {
+    pub id: String,
+    /// Date d'ajout (millisecondes Unix).
+    pub created: f64,
+    pub width: u32,
+    pub height: u32,
+    /// Image en `data:image/png;base64,…` (renseignée à la lecture, jamais stockée).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub data: String,
+}
+
 pub struct Store {
     config_dir: PathBuf,
     pub thumbs_dir: PathBuf,
@@ -104,6 +132,98 @@ impl Store {
             settings: Mutex::new(settings),
             recents: Mutex::new(recents),
         }
+    }
+
+    fn trusted_dir(&self) -> PathBuf {
+        self.config_dir.join("trusted")
+    }
+
+    pub fn trusted_roots(&self) -> Vec<TrustedRoot> {
+        read_json(&self.trusted_dir().join("index.json")).unwrap_or_default()
+    }
+
+    /// Certificats DER des autorités approuvées.
+    pub fn trusted_der(&self) -> Vec<Vec<u8>> {
+        let dir = self.trusted_dir();
+        self.trusted_roots()
+            .iter()
+            .filter_map(|r| fs::read(dir.join(format!("{}.der", file_id(&r.id)))).ok())
+            .collect()
+    }
+
+    pub fn add_trusted(&self, der: &[u8], name: String, added: f64) -> std::io::Result<TrustedRoot> {
+        let id = Sha256::digest(der)
+            .iter()
+            .map(|b| format!("{b:02X}"))
+            .collect::<Vec<_>>()
+            .join(":");
+        let dir = self.trusted_dir();
+        write_atomic(&dir.join(format!("{}.der", file_id(&id))), der)?;
+        let mut index = self.trusted_roots();
+        index.retain(|r| r.id != id);
+        let root = TrustedRoot { id, name, added };
+        index.push(root.clone());
+        write_json_atomic(&dir.join("index.json"), &index)?;
+        Ok(root)
+    }
+
+    pub fn remove_trusted(&self, id: &str) -> std::io::Result<()> {
+        let dir = self.trusted_dir();
+        let mut index = self.trusted_roots();
+        index.retain(|r| r.id != id);
+        let _ = fs::remove_file(dir.join(format!("{}.der", file_id(id))));
+        write_json_atomic(&dir.join("index.json"), &index)
+    }
+
+    fn signatures_dir(&self) -> PathBuf {
+        self.config_dir.join("signatures")
+    }
+
+    fn signature_index(&self) -> Vec<SavedSignature> {
+        read_json(&self.signatures_dir().join("index.json")).unwrap_or_default()
+    }
+
+    /// Signatures enregistrées, les plus récentes d'abord, avec leur image.
+    pub fn signatures(&self) -> Vec<SavedSignature> {
+        use base64::Engine as _;
+        let dir = self.signatures_dir();
+        self.signature_index()
+            .into_iter()
+            .filter_map(|mut s| {
+                let png = fs::read(dir.join(format!("{}.png", s.id))).ok()?;
+                s.data = format!(
+                    "data:image/png;base64,{}",
+                    base64::engine::general_purpose::STANDARD.encode(png)
+                );
+                Some(s)
+            })
+            .collect()
+    }
+
+    pub fn add_signature(&self, png: &[u8], width: u32, height: u32, created: f64) -> std::io::Result<SavedSignature> {
+        let dir = self.signatures_dir();
+        let id: String = Sha256::digest(png).iter().take(8).map(|b| format!("{b:02x}")).collect();
+        write_atomic(&dir.join(format!("{id}.png")), png)?;
+        let mut index = self.signature_index();
+        index.retain(|s| s.id != id);
+        let sig = SavedSignature {
+            id,
+            created,
+            width,
+            height,
+            data: String::new(),
+        };
+        index.insert(0, sig.clone());
+        write_json_atomic(&dir.join("index.json"), &index)?;
+        Ok(sig)
+    }
+
+    pub fn remove_signature(&self, id: &str) -> std::io::Result<()> {
+        let dir = self.signatures_dir();
+        let mut index = self.signature_index();
+        index.retain(|s| s.id != id);
+        let _ = fs::remove_file(dir.join(format!("{id}.png")));
+        write_json_atomic(&dir.join("index.json"), &index)
     }
 
     pub fn save_settings(&self, s: Settings) -> std::io::Result<()> {
@@ -152,6 +272,11 @@ impl Store {
         }
         write_json_atomic(&self.config_dir.join("recents.json"), &*r)
     }
+}
+
+/// Nom de fichier d'une empreinte « 4F:2A:… ».
+fn file_id(id: &str) -> String {
+    id.replace(':', "").to_lowercase()
 }
 
 /// Identifiant stable d'un chemin (miniatures, trousseau).

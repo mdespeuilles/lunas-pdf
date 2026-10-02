@@ -29,12 +29,25 @@ export const commands = {
 	importImage: (doc: number, path: string) => typedError<ImageInfo, PdfError>(__TAURI_INVOKE("import_image", { doc, path })),
 	/**  Copie une image importée d'un document à l'autre (collage d'un tampon image). */
 	copyImage: (from: number, to: number, key: string) => typedError<null, PdfError>(__TAURI_INVOKE("copy_image", { from, to, key })),
+	/**  Image PNG ou JPEG produite par l'interface (signature manuscrite). */
+	importImageBytes: (doc: number, bytes: number[]) => typedError<ImageInfo, PdfError>(__TAURI_INVOKE("import_image_bytes", { doc, bytes })),
+	/**  Octets d'une image choisie par l'utilisateur (onglet « Importer » d'une signature). */
+	readImageFile: (path: string) => typedError<number[], PdfError>(__TAURI_INVOKE("read_image_file", { path })),
+	listSignatures: () => __TAURI_INVOKE<SavedSignature_Serialize[]>("list_signatures").then((v) => (v.map(i=>i) as typeof v)),
+	saveSignature: (png: number[], width: number, height: number) => typedError<SavedSignature_Serialize, PdfError>(__TAURI_INVOKE("save_signature", { png, width, height })),
+	deleteSignature: (id: string) => typedError<null, PdfError>(__TAURI_INVOKE("delete_signature", { id })),
 	/**
 	 *  Enregistre le document (sur place, ou sous `path`). Écriture atomique ; l'original n'est
 	 *  jamais touché avant cet appel.
 	 */
 	saveDocument: (doc: number, path: string | null) => typedError<DocInfo, PdfError>(__TAURI_INVOKE("save_document", { doc, path })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
 	getLinks: (doc: number, page: number) => typedError<LinkInfo[], PdfError>(__TAURI_INVOKE("get_links", { doc, page })),
+	/**  Signatures numériques du document et résultat de leur vérification. */
+	getSignatures: (doc: number) => typedError<SignatureInfo[], PdfError>(__TAURI_INVOKE("get_signatures", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: v.data.map(i=>({...i,rect:i.rect==null?i.rect:i.rect,signedAt:i.signedAt==null?i.signedAt:i.signedAt,timestamp:i.timestamp==null?i.timestamp:i.timestamp,certificate:i.certificate==null?i.certificate:i.certificate})) } : v) as typeof v)),
+	/**  Approuve l'autorité en haut de la chaîne de la signature `field`. */
+	trustSignatureRoot: (doc: number, field: string) => typedError<TrustedRoot, PdfError>(__TAURI_INVOKE("trust_signature_root", { doc, field })),
+	listTrustedRoots: () => __TAURI_INVOKE<TrustedRoot[]>("list_trusted_roots").then((v) => (v.map(i=>i) as typeof v)),
+	removeTrustedRoot: (id: string) => typedError<null, PdfError>(__TAURI_INVOKE("remove_trusted_root", { id })),
 	getPageText: (doc: number, page: number) => typedError<PageText, PdfError>(__TAURI_INVOKE("get_page_text", { doc, page })),
 	/**  Recherche plein texte ; les résultats arrivent page par page sur `on_event`. */
 	search: (doc: number, searchId: number, query: string, caseSensitive: boolean, onEvent: Channel<SearchEvent>) => __TAURI_INVOKE<void>("search", { doc, searchId, query, caseSensitive, onEvent }),
@@ -108,6 +121,26 @@ export type Calculation = {
 	op: CalcOp,
 	/**  Noms de champs (un nom désigne aussi ses descendants : « total » → « total.a »…). */
 	fields: string[],
+};
+
+export type CertInfo = {
+	subject: string,
+	/**  Nom commun et organisation du titulaire. */
+	commonName: string | null,
+	organization: string | null,
+	issuer: string,
+	issuerName: string | null,
+	/**  Validité (secondes Unix). */
+	notBefore: number,
+	notAfter: number,
+	serial: string,
+	/**  Empreinte SHA-256 (« 4F:2A:… »). */
+	sha256: string,
+	/**  Certificats de la chaîne, du signataire vers la racine (noms communs). */
+	chain: string[],
+	/**  Haut de la chaîne (racine, ou dernier certificat trouvé) : autorité à approuver. */
+	rootName: string,
+	rootSha256: string,
 };
 
 export type CheckStyle = "check" | "cross" | "dot";
@@ -297,6 +330,31 @@ export type Rect = {
 	h: number,
 };
 
+/**  Signature manuscrite enregistrée (planche 07) : image PNG à fond transparent. */
+export type SavedSignature = SavedSignature_Serialize | SavedSignature_Deserialize;
+
+/**  Signature manuscrite enregistrée (planche 07) : image PNG à fond transparent. */
+export type SavedSignature_Deserialize = {
+	id: string,
+	/**  Date d'ajout (millisecondes Unix). */
+	created: number,
+	width: number,
+	height: number,
+	/**  Image en `data:image/png;base64,…` (renseignée à la lecture, jamais stockée). */
+	data?: string,
+};
+
+/**  Signature manuscrite enregistrée (planche 07) : image PNG à fond transparent. */
+export type SavedSignature_Serialize = {
+	id: string,
+	/**  Date d'ajout (millisecondes Unix). */
+	created: number,
+	width: number,
+	height: number,
+	/**  Image en `data:image/png;base64,…` (renseignée à la lecture, jamais stockée). */
+	data?: string,
+};
+
 export type SearchEvent = 
 /**  Résultats d'une page (envoyé même vide pour la progression). */
 { type: "page"; searchId: number; page: number; hits: SearchHit[] } | { type: "done"; searchId: number; total: number };
@@ -323,6 +381,50 @@ export type Settings = {
 	authorName?: string,
 	/**  Fond teinté sur les champs de formulaire (bandeau de la planche 04). */
 	highlightFields?: boolean,
+	/**  Documents signés pour lesquels l'avertissement avant modification est désactivé. */
+	signedOk?: string[],
+};
+
+export type SigStatus = 
+/**  Intacte et certificat reconnu. */
+"valid" | 
+/**  Le contenu signé a été modifié, ou la signature est fausse. */
+"invalid" | 
+/**  Intacte, mais le certificat n'est pas reconnu par ce système (ou hors validité). */
+"unknown";
+
+export type SignatureInfo = {
+	/**  Nom du champ de signature. */
+	field: string,
+	/**  Emplacement visible (absent pour une signature invisible). */
+	page: number | null,
+	rect: Rect | null,
+	status: SigStatus,
+	/**  Nom du signataire (certificat, sinon `/Name`). */
+	signer: string | null,
+	organization: string | null,
+	/**  Date de signature (secondes Unix) et décalage horaire déclaré, en minutes. */
+	signedAt: number | null,
+	utcOffset: number | null,
+	reason: string | null,
+	location: string | null,
+	/**  Empreinte et signature correctes. */
+	intact: boolean,
+	/**  La signature couvre tout le fichier (sinon : révisions ajoutées après signature). */
+	coversWhole: boolean,
+	/**  Chaîne de certificats jusqu'à une autorité reconnue par le système. */
+	trusted: boolean,
+	/**  Certificat valide à la date de signature. */
+	certValidAtSigning: boolean,
+	/**  Horodatage : date (secondes Unix) et vérification de son jeton. */
+	timestamp: number | null,
+	timestampVerified: boolean,
+	/**  Autorité d'horodatage reconnue par le système. */
+	timestampTrusted: boolean,
+	certificate: CertInfo | null,
+	subFilter: string | null,
+	/**  Cause d'un échec de vérification. */
+	problem: string | null,
 };
 
 /**
@@ -343,6 +445,15 @@ export type TextSelection = {
 };
 
 export type ThemePref = "system" | "light" | "dark";
+
+/**  Autorité de certification approuvée par l'utilisateur pour vérifier les signatures. */
+export type TrustedRoot = {
+	/**  Empreinte SHA-256 (« 4F:2A:… »), aussi nom du fichier. */
+	id: string,
+	name: string,
+	/**  Date d'ajout (millisecondes Unix). */
+	added: number,
+};
 
 export type Widget = {
 	page: number,

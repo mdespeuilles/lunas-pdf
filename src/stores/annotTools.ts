@@ -57,6 +57,16 @@ export const useAnnotTools = defineStore("annotTools", () => {
   const checkStyle = ref<CheckStyle>("check");
   /** Outil demandé au clavier qui nécessite la barre (image, signature). */
   const request = ref<{ tool: Tool; seq: number } | null>(null);
+  /** Image à poser (signature, tampon) : elle suit le curseur jusqu'au clic. Taille en points. */
+  const placing = ref<{ tabKey: string; key: string; url: string; w: number; h: number } | null>(null);
+  /** Position du curseur pendant la pose (page et point d'affichage). */
+  const placingAt = ref<{ page: number; x: number; y: number } | null>(null);
+
+  function cancelPlacing() {
+    if (placing.value) URL.revokeObjectURL(placing.value.url);
+    placing.value = null;
+    placingAt.value = null;
+  }
 
   const family = computed(() => familyOf(tool.value));
   const colorKey = computed<PaletteKey>({
@@ -65,7 +75,7 @@ export const useAnnotTools = defineStore("annotTools", () => {
   });
   const color = computed(() => colorFor(colorKey.value, tool.value));
 
-  return { tool, colors, width, font, size, checkStyle, request, family, colorKey, color };
+  return { tool, colors, width, font, size, checkStyle, request, placing, placingAt, cancelPlacing, family, colorKey, color };
 });
 
 export function familyOf(tool: Tool | string): string {
