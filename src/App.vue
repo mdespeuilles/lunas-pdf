@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Upload } from "lucide-vue-next";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AboutDialog from "./components/AboutDialog.vue";
 import AskDialog from "./components/AskDialog.vue";
+import ExportDialog from "./components/ExportDialog.vue";
 import PageDragGhost from "./components/PageDragGhost.vue";
 import { fileDrop, thumbsTarget } from "./composables/page-drag";
 import { insertFiles } from "./composables/insert-files";
@@ -30,6 +31,7 @@ const { t } = useI18n();
 const tabs = useTabs();
 const ui = useUi();
 const sigs = useSignatures();
+const exportTab = computed(() => tabs.tabs.find((x) => x.key === ui.exportTab && x.status === "ready") ?? null);
 const settings = useSettings();
 const recents = useRecents();
 const dragging = ref(false);
@@ -87,6 +89,7 @@ tabs.$onAction(({ name, after }) => {
     <PreferencesDialog v-if="ui.prefsOpen" />
     <AboutDialog v-if="ui.aboutOpen" />
     <AskDialog v-if="ui.ask" />
+    <ExportDialog v-if="exportTab" :tab="exportTab" @close="ui.exportTab = null" />
     <SignaturePicker v-if="sigs.picker" />
     <PageDragGhost />
     <SignatureDialog v-if="sigs.dialog" />

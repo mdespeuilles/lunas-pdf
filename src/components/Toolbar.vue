@@ -13,10 +13,12 @@ import { ZOOM_PRESETS } from "../lib/layout";
 import { percent } from "../lib/format";
 import { toggleAnnotate } from "../composables/signed";
 import { type DocTab, useTabs } from "../stores/tabs";
+import { useUi } from "../stores/ui";
 
 const props = defineProps<{ tab: DocTab; disabled?: boolean }>();
 const { t, locale } = useI18n();
 const tabs = useTabs();
+const ui = useUi();
 const searchBox = ref<InstanceType<typeof SearchBox>>();
 const pageInput = ref<HTMLInputElement>();
 const count = computed(() => props.tab.info?.pages.length ?? 0);
@@ -141,7 +143,7 @@ defineExpose({
       <button class="tb" :disabled="disabled" :aria-label="t('toolbar.organize')" :title="t('toolbar.organize')" @click="tabs.toggleOrganizing(tab, true)">
         <LayoutGrid class="ic" aria-hidden="true" />
       </button>
-      <button class="tb" disabled :aria-label="t('toolbar.share')" :title="t('toolbar.comingSoon')">
+      <button class="tb" :disabled="disabled" :aria-label="t('toolbar.share')" :title="t('toolbar.share')" @click="ui.exportTab = tab.key">
         <Share class="ic" aria-hidden="true" />
       </button>
     </div>

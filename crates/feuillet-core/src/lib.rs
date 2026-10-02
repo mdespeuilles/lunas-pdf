@@ -5,6 +5,7 @@ pub mod annot;
 pub mod appearance;
 pub mod engine;
 pub mod error;
+pub mod export;
 pub mod fonts;
 pub mod form;
 pub mod form_script;

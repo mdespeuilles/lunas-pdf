@@ -1,7 +1,7 @@
 // Backend simulé pour les tests de parcours (vite --mode e2e) : remplace src/bindings.ts.
 // Mêmes signatures que les commandes générées par tauri-specta, données déterministes.
 import type {
-  Annot, AnnotOp, DocInfo, EditState, FormField, PageGeom, PageOp, SavedSignature, SignatureInfo, TrustedRoot, ImageInfo, LinkInfo, OpenFilesEvent, OutlineItem, PageText, PdfError, Point, RecentDoc, Rect, SearchEvent, SearchHit,
+  Annot, AnnotOp, DocInfo, EditState, ExportOptions, ExportResult, FormField, PageGeom, PageOp, SavedSignature, SignatureInfo, TrustedRoot, ImageInfo, LinkInfo, OpenFilesEvent, OutlineItem, PageText, PdfError, Point, RecentDoc, Rect, SearchEvent, SearchHit,
   Settings, TextRun, TextSelection,
 } from "../../src/bindings";
 
@@ -353,6 +353,22 @@ export const commands = {
   },
   async openPageSource(path: string): Res<DocInfo> {
     return commands.openDocument(path, null, false);
+  },
+  async exportDocument(doc: number, opts: ExportOptions, path: string): Res<ExportResult> {
+    const n = opts.pages?.length ?? editor(doc).order.length;
+    const p = opts.protection;
+    e2e.calls!.push(`export:${path}:${opts.format}:${opts.quality}:${opts.pages?.join(",") ?? "all"}:${opts.dpi}${p ? `:pw=${p.password}:print=${p.allowPrint}:copy=${p.allowCopy}` : ""}`);
+    const files = opts.format === "png" || opts.format === "jpg" ? Array.from({ length: n }, (_, i) => path.replace(/(\.\w+)$/, `-${String(i + 1).padStart(2, "0")}$1`)) : [path];
+    return ok({ files: n === 1 ? [path] : files, size: 1000 * n });
+  },
+  async exportEstimate(doc: number, opts: ExportOptions): Res<ExportResult> {
+    const n = opts.pages?.length ?? editor(doc).order.length;
+    const factor = opts.quality === "light" ? 0.4 : opts.quality === "balanced" ? 0.7 : 1;
+    return ok({ files: [], size: Math.round(350_000 * n * factor) });
+  },
+  async printDocument(_doc: number, name: string, pages: [number, number][]): Res<boolean> {
+    e2e.calls!.push(`print:${name}:${pages.length}`);
+    return ok(true);
   },
   async extractPages(_doc: number, pages: number[], path: string): Res<null> {
     e2e.calls!.push(`extract:${path}:${pages.join(",")}`);

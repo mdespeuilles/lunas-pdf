@@ -28,3 +28,7 @@ sys-locale = "0.3"
 sha2 = "0.11"
 dirs = "7"
 base64 = "0.22"
+
+# Impression native (dialogue d'impression GTK, déjà embarqué par Tauri sous Linux).
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"

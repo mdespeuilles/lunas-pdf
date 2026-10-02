@@ -7,6 +7,8 @@ export type AskAnswer = "save" | "discard" | "cancel" | "confirm" | "copy";
 /** État d'interface global : dialogues et messages éphémères. */
 export const useUi = defineStore("ui", () => {
   const prefsOpen = ref(false);
+  /** Fenêtre « Exporter » ouverte pour cet onglet. */
+  const exportTab = ref<string | null>(null);
   const aboutOpen = ref(false);
   const toast = ref<{ text: string; seq: number } | null>(null);
   const ask = ref<{ kind: AskKind; tabKey: string; resolve: (a: AskAnswer) => void } | null>(null);
@@ -37,5 +39,5 @@ export const useUi = defineStore("ui", () => {
     });
   }
 
-  return { prefsOpen, aboutOpen, toast, ask, askRemember, notify, askUser };
+  return { prefsOpen, exportTab, aboutOpen, toast, ask, askRemember, notify, askUser };
 });

@@ -81,6 +81,13 @@ enum Msg {
         page: u32,
         reply: Sender<Result<Vec<LinkInfo>>>,
     },
+    Export {
+        doc: DocId,
+        opts: crate::export::ExportOptions,
+        /// `None` : estimation de taille seulement.
+        path: Option<PathBuf>,
+        reply: Sender<Result<crate::export::ExportResult>>,
+    },
     ClipPages {
         doc: DocId,
         pages: Vec<u32>,
@@ -231,6 +238,25 @@ impl Engine {
     /// Nom d'auteur des nouvelles annotations (`/T`).
     pub fn set_author(&self, name: String) {
         let _ = self.tx.send(Msg::SetAuthor { name });
+    }
+    /// Exporte le document (planche 10) vers `path` ; renvoie les fichiers écrits.
+    pub fn export(
+        &self,
+        doc: DocId,
+        opts: crate::export::ExportOptions,
+        path: impl Into<PathBuf>,
+    ) -> Result<crate::export::ExportResult> {
+        let path = Some(path.into());
+        self.call(|reply| Msg::Export { doc, opts, path, reply })
+    }
+    /// Taille du PDF que produirait l'export (formats PDF seulement), sans rien écrire.
+    pub fn export_estimate(&self, doc: DocId, opts: crate::export::ExportOptions) -> Result<crate::export::ExportResult> {
+        self.call(|reply| Msg::Export {
+            doc,
+            opts,
+            path: None,
+            reply,
+        })
     }
     /// Copie figée des pages choisies, ouverte comme document en mémoire (presse-papiers de
     /// pages ; le fermer avec `close` quand il est remplacé).
@@ -432,6 +458,9 @@ impl Actor {
             Msg::SetAuthor { name } => {
                 self.author = name;
             }
+            Msg::Export { doc, opts, path, reply } => {
+                let _ = reply.send(self.export(doc, &opts, path));
+            }
             Msg::ClipPages { doc, pages, reply } => {
                 let _ = reply.send(self.clip_pages(doc, pages));
             }
@@ -505,6 +534,112 @@ impl Actor {
         }
         let bytes = Arc::new(std::fs::read(path).map_err(|e| Error::NotFound(format!("{}: {e}", path.display())))?);
         self.open_bytes(bytes, path, password)
+    }
+
+    /// Octets du document dans l'état courant, comme à l'enregistrement (caviardage appliqué).
+    fn final_bytes(&mut self, doc: DocId) -> Result<(Vec<u8>, Option<String>)> {
+        let d = self.docs.get(&doc).ok_or(Error::UnknownDocument)?;
+        let password = d.password.clone();
+        let Some(ed) = d.editor.as_ref() else {
+            return Ok((d.bytes.to_vec(), password));
+        };
+        let bytes = if ed.state(vec![]).pending_redactions {
+            crate::redact::apply(&ed.build(true)?, password.as_deref())?
+        } else {
+            ed.build(true)?
+        };
+        Ok((bytes, password))
+    }
+
+    fn export(
+        &mut self,
+        doc: DocId,
+        opts: &crate::export::ExportOptions,
+        path: Option<PathBuf>,
+    ) -> Result<crate::export::ExportResult> {
+        use crate::export::{ExportFormat, ExportResult, finish_pdf, image_path, jpeg_quality};
+        let count = self.docs.get(&doc).ok_or(Error::UnknownDocument)?.info.pages.len() as u32;
+        let pages: Vec<u32> = match &opts.pages {
+            Some(p) => p.iter().copied().filter(|i| *i < count).collect(),
+            None => (0..count).collect(),
+        };
+        if pages.is_empty() {
+            return Err(Error::Invalid("aucune page".into()));
+        }
+        if let ExportFormat::Png | ExportFormat::Jpg = opts.format {
+            let Some(path) = path else {
+                return Ok(ExportResult { files: vec![], size: 0 });
+            };
+            let jpg = opts.format == ExportFormat::Jpg;
+            let d = self.doc(doc)?;
+            let scale = opts.dpi.clamp(36, 600) as f32 / 72.0;
+            let mut files = vec![];
+            let mut size = 0;
+            for (k, &i) in pages.iter().enumerate() {
+                let page = d.pdf.pages().get(i as i32)?;
+                let cfg = PdfRenderConfig::new()
+                    .scale_page_by_factor(scale)
+                    .render_annotations(true)
+                    .render_form_data(true);
+                let img = page.render_with_config(&cfg)?.as_image()?;
+                let mut out = vec![];
+                if jpg {
+                    let enc = image::codecs::jpeg::JpegEncoder::new_with_quality(
+                        std::io::Cursor::new(&mut out),
+                        jpeg_quality(opts.quality),
+                    );
+                    image::DynamicImage::ImageRgb8(img.to_rgb8())
+                        .write_with_encoder(enc)
+                        .map_err(|e| Error::Engine(e.to_string()))?;
+                } else {
+                    img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+                        .map_err(|e| Error::Engine(e.to_string()))?;
+                }
+                let target = image_path(&path, k, pages.len(), if jpg { "jpg" } else { "png" });
+                crate::fsutil::write_atomic(&target, &out).map_err(|e| Error::Engine(format!("enregistrement : {e}")))?;
+                size += out.len() as u64;
+                files.push(target.display().to_string());
+            }
+            return Ok(ExportResult { files, size });
+        }
+        let (mut bytes, mut password) = self.final_bytes(doc)?;
+        if pages.len() != count as usize || pages.iter().enumerate().any(|(k, p)| *p != k as u32) {
+            let opts_l = lopdf::LoadOptions {
+                password: password.clone(),
+                ..Default::default()
+            };
+            let src = lopdf::Document::load_mem_with_options(&bytes, opts_l).map_err(|e| Error::Invalid(e.to_string()))?;
+            let order: Vec<lopdf::ObjectId> = src.get_pages().into_values().collect();
+            let ids: Vec<lopdf::ObjectId> = pages.iter().filter_map(|p| order.get(*p as usize).copied()).collect();
+            bytes = crate::pages::extract(&src, &ids)?;
+            password = None;
+        }
+        if opts.format == ExportFormat::Flattened {
+            let arc = Arc::new(bytes);
+            let flat = {
+                let pdf = self.load(&arc, password.as_deref())?;
+                for p in pdf.pages().iter() {
+                    let mut p = p;
+                    p.flatten()?;
+                }
+                pdf.save_to_bytes()?
+            };
+            bytes = flat;
+        }
+        let out = finish_pdf(
+            &bytes,
+            password.as_deref(),
+            opts.quality,
+            opts.protection.as_ref(),
+            opts.format == ExportFormat::Flattened,
+        )?;
+        let size = out.len() as u64;
+        let mut files = vec![];
+        if let Some(path) = path {
+            crate::fsutil::write_atomic(&path, &out).map_err(|e| Error::Engine(format!("enregistrement : {e}")))?;
+            files.push(path.display().to_string());
+        }
+        Ok(ExportResult { files, size })
     }
 
     /// Copie figée de pages (presse-papiers de pages) : document en mémoire, sans fichier.

@@ -129,11 +129,25 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - Une extraction depuis un document chiffré produit un fichier non chiffré.
 - Volet de droite : les actions de la barre visent le volet utilisé en dernier ; Ctrl Z annule dans le document du volet qui a le focus.
 
-## Phase 6 : enregistrement et export ⬜
+## Phase 6 : enregistrement et export ✅
 
-- ✅ Ctrl S, Ctrl Maj S, modale à la fermeture d'un document modifié (faits en phase 2).
-- Export PDF, PDF aplati, PNG ou JPG ; compression ; plages ; mot de passe et permissions (lopdf V5).
-- Impression native du PDF (pas `webview.print()`).
+| Fonction | État | Notes |
+|---|---|---|
+| Ctrl S, Ctrl Maj S, modale à la fermeture d'un document modifié | ✅ | Faits en phase 2 |
+| Fenêtre « Exporter » (Ctrl Maj E, bouton « Partager et exporter », menu) : planche 10 | ✅ | Nom du fichier proposé, estimation de taille mise à jour en direct |
+| PDF : annotations et champs modifiables | ✅ | Fichier réécrit en entier : objets inutilisés retirés, flux compressés ; caviardage en attente appliqué |
+| PDF aplati | ✅ | Aplatissement PDFium ; AcroForm retiré ; valeurs saisies conservées dans la page |
+| Images : PNG ou JPG, 72 / 150 / 300 ppp, une image par page | ✅ | « nom-01.png »… ; rendu avec annotations et champs |
+| Qualité des images (léger, équilibré, maximal) | ✅ | Images RVB ou en niveaux de gris réduites (1 400 / 2 200 px) et réencodées en JPEG si plus légères ; qualité JPEG d'un export en images |
+| Pages : toutes, page actuelle, plage (« 1-3, 5, 8- ») | ✅ | |
+| Mot de passe et autorisations (impression, copie) | ✅ | AES-256 (révision 6), mot de passe propriétaire aléatoire ; vérifié avec qpdf et Poppler |
+| Impression native (Ctrl P, menu, fenêtre d'export) | 🟡 | Linux : dialogue d'impression GTK, pages rendues par PDFium (300 ppp au plus). Non vérifiée automatiquement (dialogue du système). macOS et Windows : message « non disponible » |
+
+Écarts et limites :
+- Un document chiffré s'exporte en clair si « Protéger par mot de passe » n'est pas coché.
+- Recompression : images CMJN, à palette, masques, JBIG2 et JPX laissées telles quelles.
+- La taille « actuel » est celle d'un export sans recompression (pas celle du fichier sur le disque).
+- Export d'une partie des pages : document reconstruit (signets à plat, métadonnées et étiquettes de page non reprises).
 
 ## Dette et points ouverts
 

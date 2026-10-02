@@ -194,6 +194,52 @@ pub async fn clip_pages(engine: State<'_, Engine>, doc: DocId, pages: Vec<u32>) 
     blocking(move || e.clip_pages(doc, pages)).await
 }
 
+/// Exporte le document (planche 10) ; renvoie les fichiers écrits.
+#[tauri::command]
+#[specta::specta]
+pub async fn export_document(
+    engine: State<'_, Engine>,
+    doc: DocId,
+    opts: feuillet_core::export::ExportOptions,
+    path: String,
+) -> Result<feuillet_core::export::ExportResult> {
+    let e = engine.inner().clone();
+    blocking(move || e.export(doc, opts, path)).await
+}
+
+/// Taille estimée d'un export PDF (rien n'est écrit).
+#[tauri::command]
+#[specta::specta]
+pub async fn export_estimate(
+    engine: State<'_, Engine>,
+    doc: DocId,
+    opts: feuillet_core::export::ExportOptions,
+) -> Result<feuillet_core::export::ExportResult> {
+    let e = engine.inner().clone();
+    blocking(move || e.export_estimate(doc, opts)).await
+}
+
+/// Imprime le document (dialogue d'impression du système) ; vrai si l'impression est lancée.
+#[tauri::command]
+#[specta::specta]
+pub async fn print_document(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    engine: State<'_, Engine>,
+    doc: DocId,
+    name: String,
+    pages: Vec<(f32, f32)>,
+) -> Result<bool> {
+    let e = engine.inner().clone();
+    let (tx, rx) = std::sync::mpsc::channel();
+    // GTK : sur le fil principal.
+    app.run_on_main_thread(move || {
+        let _ = tx.send(crate::print::print(&window, e, doc, name, pages));
+    })
+    .map_err(|e| Error::Engine(e.to_string()))?;
+    blocking(move || rx.recv().map_err(|e| Error::Engine(e.to_string()))?).await
+}
+
 /// Enregistre les pages choisies dans un nouveau PDF.
 #[tauri::command]
 #[specta::specta]

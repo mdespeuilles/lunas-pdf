@@ -7,6 +7,7 @@ import { useUi } from "../stores/ui";
 import { useAnnotClipboard } from "./clipboard";
 import { useOrganize } from "./organize";
 import { usePageClipboard } from "./page-clipboard";
+import { printTab } from "./print";
 import { stops, useForm } from "./form";
 import { markupFromSelection } from "./markup";
 import { openFromDialog } from "./open";
@@ -53,6 +54,8 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
     // Enregistrement et annotation
     if (ctrl && key === "s") return run(e, () => saveTab(tab, e.shiftKey));
     if (ctrl && e.shiftKey && key === "o") return run(e, () => tabs.toggleOrganizing(tab));
+    if (ctrl && e.shiftKey && key === "e") return run(e, () => (ui.exportTab = tab.key));
+    if (ctrl && !e.shiftKey && key === "p") return run(e, () => printTab(tab));
     if (tab.organizing) return organizeKeys(e, tab, typing, ctrl, key);
     if (ctrl && e.shiftKey && key === "a") return run(e, () => toggleAnnotate(tab));
     if (!typing && ctrl && (key === "y" || (key === "z" && e.shiftKey))) return run(e, () => tabs.redo(tab));

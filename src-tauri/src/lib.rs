@@ -1,4 +1,5 @@
 mod commands;
+mod print;
 mod protocol;
 mod store;
 
@@ -65,6 +66,9 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::apply_annotations,
             commands::apply_pages,
             commands::extract_pages,
+            commands::export_document,
+            commands::export_estimate,
+            commands::print_document,
             commands::clip_pages,
             commands::open_page_source,
             commands::undo,

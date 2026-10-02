@@ -6,6 +6,7 @@ import Dropdown from "./Dropdown.vue";
 import { useUi } from "../stores/ui";
 import { useTabs } from "../stores/tabs";
 import { openFromDialog } from "../composables/open";
+import { printTab } from "../composables/print";
 import { requestClose, saveTab } from "../composables/save";
 
 defineProps<{ variant: "main" | "more" }>();
@@ -40,6 +41,12 @@ const tabs = useTabs();
       </button>
       <button class="mi" role="menuitem" @click="saveTab(tabs.active, true)">
         <span class="ck" />{{ t("menu.saveAs") }}<span class="kbd">Ctrl Maj S</span>
+      </button>
+      <button class="mi" role="menuitem" @click="ui.exportTab = tabs.active.key">
+        <span class="ck" />{{ t("menu.export") }}<span class="kbd">Ctrl Maj E</span>
+      </button>
+      <button class="mi" role="menuitem" @click="printTab(tabs.active)">
+        <span class="ck" />{{ t("menu.print") }}<span class="kbd">Ctrl P</span>
       </button>
     </template>
     <button v-if="tabs.active" class="mi" role="menuitem" @click="requestClose(tabs.active)">

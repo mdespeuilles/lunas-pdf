@@ -13,6 +13,7 @@ thiserror.workspace = true
 image.workspace = true
 lopdf = "0.45"
 flate2 = "1"
+getrandom = "0.2"
 # Vérification des signatures numériques (CMS / PKCS#7, RustCrypto, Apache-2.0 / MIT).
 cms = "0.2"
 x509-cert = "0.2"

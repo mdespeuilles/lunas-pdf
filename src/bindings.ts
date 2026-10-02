@@ -27,6 +27,12 @@ export const commands = {
 	applyPages: (doc: number, op: PageOp) => typedError<EditState, PdfError>(__TAURI_INVOKE("apply_pages", { doc, op })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.data.pages==null?v.data.pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
 	/**  Enregistre les pages choisies dans un nouveau PDF. */
 	extractPages: (doc: number, pages: number[], path: string) => typedError<null, PdfError>(__TAURI_INVOKE("extract_pages", { doc, pages, path })),
+	/**  Exporte le document (planche 10) ; renvoie les fichiers écrits. */
+	exportDocument: (doc: number, opts: ExportOptions, path: string) => typedError<ExportResult, PdfError>(__TAURI_INVOKE("export_document", { doc, opts, path })),
+	/**  Taille estimée d'un export PDF (rien n'est écrit). */
+	exportEstimate: (doc: number, opts: ExportOptions) => typedError<ExportResult, PdfError>(__TAURI_INVOKE("export_estimate", { doc, opts })),
+	/**  Imprime le document (dialogue d'impression du système) ; vrai si l'impression est lancée. */
+	printDocument: (doc: number, name: string, pages: ([number, number])[]) => typedError<boolean, PdfError>(__TAURI_INVOKE("print_document", { doc, name, pages: pages.map(i=>i) })),
 	/**  Copie figée de pages (presse-papiers de pages) : document en mémoire à coller ailleurs. */
 	clipPages: (doc: number, pages: number[]) => typedError<DocInfo, PdfError>(__TAURI_INVOKE("clip_pages", { doc, pages })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
 	/**
@@ -201,6 +207,35 @@ export type EditState = {
 	pages: PageGeom[] | null,
 };
 
+export type ExportFormat = 
+/**  Annotations et champs restent modifiables. */
+"pdf" | 
+/**  Annotations et champs fusionnés dans la page. */
+"flattened" | "png" | "jpg";
+
+export type ExportOptions = {
+	format: ExportFormat,
+	quality: Quality,
+	/**  Pages exportées (indices) ; `None` : toutes. */
+	pages: number[] | null,
+	/**  Résolution d'un export en images (points par pouce). */
+	dpi: number,
+	protection: ExportProtection | null,
+};
+
+export type ExportProtection = {
+	password: string,
+	allowPrint: boolean,
+	allowCopy: boolean,
+};
+
+export type ExportResult = {
+	/**  Fichiers écrits (vide pour une estimation). */
+	files: string[],
+	/**  Taille totale en octets. */
+	size: number,
+};
+
 /**  Mise en forme d'un champ texte (actions `/F` et `/K`). */
 export type FieldFormat = 
 /**
@@ -332,6 +367,13 @@ export type Point = {
 	x: number,
 	y: number,
 };
+
+/**  Qualité des images : recompression des images du PDF, ou qualité JPEG d'un export en images. */
+export type Quality = 
+/**  Fichier le plus léger. */
+"light" | "balanced" | 
+/**  Images d'origine. */
+"max";
 
 /**  `AFRange_Validate` (bornes incluses). */
 export type RangeRule = {
