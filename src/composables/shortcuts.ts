@@ -5,6 +5,7 @@ import { TOOL_KEYS, useAnnotTools } from "../stores/annotTools";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useAnnotClipboard } from "./clipboard";
+import { stops, useForm } from "./form";
 import { markupFromSelection } from "./markup";
 import { openFromDialog } from "./open";
 import { requestClose, saveTab } from "./save";
@@ -25,6 +26,7 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
   const ui = useUi();
   const tools = useAnnotTools();
   const clipboard = useAnnotClipboard();
+  const form = useForm();
 
   function onKey(e: KeyboardEvent) {
     const ctrl = e.ctrlKey || e.metaKey;
@@ -82,6 +84,11 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
       }
     }
 
+    // Formulaire : Tab depuis le document entre dans les champs (les contrôles gèrent la suite).
+    if (e.key === "Tab" && !ctrl && !e.altKey && !tab.annotating && stops(tab.edit?.fields ?? []).length) {
+      const el = document.activeElement;
+      if (!el || el === document.body || el.matches(".scroller")) return run(e, () => form.step(tab, e.shiftKey ? -1 : 1));
+    }
     if (e.key === "F9") return run(e, () => tabs.toggleSidebar(tab));
     if (ctrl && !e.shiftKey && key === "f") return run(e, () => reader()?.focusSearch());
     if (e.altKey && !ctrl && (key === "c" || e.code === "KeyC")) return run(e, () => reader()?.toggleCase());
@@ -93,7 +100,8 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
     if (ctrl && !e.shiftKey && (e.code === "Digit2" || e.code === "Numpad2")) return run(e, () => tabs.setMode(tab, "continuous"));
     if (ctrl && !e.shiftKey && (e.code === "Digit3" || e.code === "Numpad3")) return run(e, () => tabs.setMode(tab, "double"));
 
-    if (typing || ctrl || e.altKey) return;
+    // Les contrôles du formulaire (cases, radios) gardent leurs touches simples.
+    if (typing || ctrl || e.altKey || (e.target as HTMLElement | null)?.closest?.(".flayer")) return;
     if (key === "w") return run(e, () => tabs.setFit(tab, "width"));
     if (key === "f") return run(e, () => tabs.setFit(tab, "page"));
     if (e.key === "ArrowLeft") return run(e, () => tabs.step(tab, -1));

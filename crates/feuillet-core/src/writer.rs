@@ -14,6 +14,8 @@ use lopdf::{Dictionary, Document, Object, ObjectId, Stream, dictionary, xref::Xr
 use crate::annot::{Annot, AnnotBody, AnnotOp, CheckStyle, EditState, FontFamily, History, Point, format_color, parse_color};
 use crate::appearance::{self, NOTE_SIZE};
 use crate::error::{Error, Result};
+use crate::form::{self, FieldSource, FormField};
+use crate::form_script;
 use crate::geom::Affine;
 use crate::pdfwrite::{write_indirect, write_object};
 use crate::types::Rect;
@@ -60,6 +62,12 @@ pub struct Editor {
     history: History,
     images: HashMap<String, ImportedImage>,
     pub author: String,
+    /// Champs du formulaire (état courant et état enregistré).
+    pub fields: Vec<FormField>,
+    saved_fields: Vec<FormField>,
+    field_src: HashMap<String, FieldSource>,
+    /// Champs calculés, dans l'ordre des calculs (`/CO`, puis ordre du document).
+    calc_order: Vec<String>,
 }
 
 impl Editor {
@@ -79,9 +87,14 @@ impl Editor {
             history: History::default(),
             images: HashMap::new(),
             author,
+            fields: vec![],
+            saved_fields: vec![],
+            field_src: HashMap::new(),
+            calc_order: vec![],
         };
         ed.parse()?;
         ed.saved = ed.annots.clone();
+        ed.saved_fields = ed.fields.clone();
         Ok(ed)
     }
 
@@ -96,6 +109,7 @@ impl Editor {
     pub fn state(&self, changed_pages: Vec<u32>) -> EditState {
         EditState {
             annots: self.annots.clone(),
+            fields: self.fields.clone(),
             changed_pages,
             can_undo: self.history.can_undo(),
             can_redo: self.history.can_redo(),
@@ -123,11 +137,18 @@ impl Editor {
             .iter()
             .filter(|s| !self.annots.iter().any(|a| a.id == s.id))
             .count();
-        (changed + removed) as u32
+        let fields = self
+            .fields
+            .iter()
+            .zip(&self.saved_fields)
+            .filter(|(a, b)| a.value != b.value)
+            .count();
+        (changed + removed + fields) as u32
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.annots.len() != self.saved.len()
+        self.fields != self.saved_fields
+            || self.annots.len() != self.saved.len()
             || self.annots.iter().zip(&self.saved).any(|(a, b)| {
                 let mut a = a.clone();
                 a.hidden = false;
@@ -145,14 +166,54 @@ impl Editor {
     }
 
     pub fn apply(&mut self, ops: Vec<AnnotOp>) -> Vec<u32> {
-        let ops = ops.into_iter().map(|op| self.normalize_op(op)).collect();
-        self.history.apply(&mut self.annots, ops)
+        let mut ops: Vec<AnnotOp> = ops.into_iter().filter_map(|op| self.normalize_op(op)).collect();
+        // Les champs calculés suivent dans le même pas d'annulation.
+        let calc = self.calculations(&ops);
+        ops.extend(calc);
+        self.history.apply(&mut self.annots, &mut self.fields, ops)
+    }
+
+    /// Recalcule les champs `AFSimple_Calculate` après ces saisies.
+    fn calculations(&self, ops: &[AnnotOp]) -> Vec<AnnotOp> {
+        if self.calc_order.is_empty() || !ops.iter().any(|op| matches!(op, AnnotOp::SetField { .. })) {
+            return vec![];
+        }
+        let mut sim = self.fields.clone();
+        for op in ops {
+            if let AnnotOp::SetField { id, value } = op
+                && let Some(f) = sim.iter_mut().find(|f| &f.id == id)
+            {
+                f.value = value.clone();
+            }
+        }
+        let mut out = vec![];
+        for id in &self.calc_order {
+            let Some(i) = sim.iter().position(|f| &f.id == id) else {
+                continue;
+            };
+            let Some(calc) = sim[i].calc.clone() else { continue };
+            let values: Vec<String> = form::calc_inputs(&sim, &calc)
+                .iter()
+                .filter(|f| f.id != *id)
+                .map(|f| f.value.first().cloned().unwrap_or_default())
+                .collect();
+            let refs: Vec<&str> = values.iter().map(String::as_str).collect();
+            let r = vec![form_script::calculate(calc.op, &refs)];
+            if sim[i].value != r {
+                sim[i].value = r.clone();
+                out.push(AnnotOp::SetField {
+                    id: id.clone(),
+                    value: r,
+                });
+            }
+        }
+        out
     }
     pub fn undo(&mut self) -> Vec<u32> {
-        self.history.undo(&mut self.annots)
+        self.history.undo(&mut self.annots, &mut self.fields)
     }
     pub fn redo(&mut self) -> Vec<u32> {
-        self.history.redo(&mut self.annots)
+        self.history.redo(&mut self.annots, &mut self.fields)
     }
 
     /// Masque une annotation le temps d'une édition en place (hors historique).
@@ -166,8 +227,9 @@ impl Editor {
         }
     }
 
-    /// Complète une opération venue de l'interface : auteur, date, rectangle des lignes.
-    fn normalize_op(&self, op: AnnotOp) -> AnnotOp {
+    /// Complète une opération venue de l'interface : auteur, date, rectangle des lignes. Les
+    /// saisies sur un champ inconnu ou en lecture seule sont écartées.
+    fn normalize_op(&self, op: AnnotOp) -> Option<AnnotOp> {
         let fix = |mut a: Annot| {
             a.modified = Some(pdf_date_now());
             if a.author.is_none() {
@@ -183,14 +245,20 @@ impl Editor {
             }
             a
         };
-        match op {
+        Some(match op {
             AnnotOp::Add { annot, index } => AnnotOp::Add {
                 annot: fix(annot),
                 index,
             },
             AnnotOp::Update { annot } => AnnotOp::Update { annot: fix(annot) },
+            AnnotOp::SetField { id, value } => {
+                if !self.fields.iter().any(|f| f.id == id && !f.read_only) {
+                    return None;
+                }
+                AnnotOp::SetField { id, value }
+            }
             r => r,
-        }
+        })
     }
 
     // --- Lecture des annotations existantes ---------------------------------------------------
@@ -260,6 +328,95 @@ impl Editor {
                 entries,
             });
         }
+        let index = form::PageIndex {
+            ids: self.pages.iter().map(|p| (p.id, p.to_display)).collect(),
+            widgets: self
+                .pages
+                .iter()
+                .enumerate()
+                .flat_map(|(pi, p)| {
+                    p.entries
+                        .iter()
+                        .filter_map(move |e| e.obj.as_reference().ok().map(|r| (r, pi as u32)))
+                })
+                .collect(),
+        };
+        for (f, src) in form::parse_fields(&self.doc, &index) {
+            self.field_src.insert(f.id.clone(), src);
+            self.fields.push(f);
+        }
+        for oid in form::calc_order(&self.doc) {
+            if let Some((id, _)) = self.field_src.iter().find(|(_, s)| s.field == oid)
+                && self.fields.iter().any(|f| &f.id == id && f.calc.is_some())
+                && !self.calc_order.contains(id)
+            {
+                self.calc_order.push(id.clone());
+            }
+        }
+        for f in self.fields.iter().filter(|f| f.calc.is_some()) {
+            if !self.calc_order.contains(&f.id) {
+                self.calc_order.push(f.id.clone());
+            }
+        }
+        Ok(())
+    }
+
+    /// Champs modifiés : `/V` (et `/I`) du champ, `/AS` ou apparence régénérée des widgets.
+    fn write_fields(&self, objects: &mut Vec<(ObjectId, Object)>, next: &mut u32) -> Result<()> {
+        let mut dicts: Vec<(ObjectId, Dictionary)> = vec![];
+        let get = |dicts: &mut Vec<(ObjectId, Dictionary)>, id: ObjectId| -> Result<usize> {
+            if let Some(i) = dicts.iter().position(|(d, _)| *d == id) {
+                return Ok(i);
+            }
+            let d = self
+                .doc
+                .get_dictionary(id)
+                .map_err(|e| Error::Invalid(e.to_string()))?
+                .clone();
+            dicts.push((id, d));
+            Ok(dicts.len() - 1)
+        };
+        for (f, saved) in self.fields.iter().zip(&self.saved_fields) {
+            if f.value == saved.value {
+                continue;
+            }
+            let Some(src) = self.field_src.get(&f.id) else { continue };
+            let i = get(&mut dicts, src.field)?;
+            match form::value_object(f) {
+                Some(v) => dicts[i].1.set("V", v),
+                None => {
+                    dicts[i].1.remove(b"V");
+                }
+            }
+            if matches!(f.kind, form::FieldKind::List { .. }) {
+                match form::selected_indices(f) {
+                    Some(idx) => dicts[i].1.set("I", idx),
+                    None => {
+                        dicts[i].1.remove(b"I");
+                    }
+                }
+            }
+            for (w, wid) in f.widgets.iter().zip(&src.widgets) {
+                let i = get(&mut dicts, *wid)?;
+                match &f.kind {
+                    form::FieldKind::Checkbox | form::FieldKind::Radio => {
+                        let on = w.on_state.as_ref().filter(|s| f.value.contains(s));
+                        dicts[i]
+                            .1
+                            .set("AS", Object::Name(on.map(|s| s.as_bytes()).unwrap_or(b"Off").to_vec()));
+                    }
+                    _ => {
+                        if let Some(ap) = form::widget_appearance(&self.doc, f, src, &dicts[i].1) {
+                            let id = (*next, 0);
+                            *next += 1;
+                            objects.push((id, Object::Stream(ap)));
+                            dicts[i].1.set("AP", dictionary! { "N" => id });
+                        }
+                    }
+                }
+            }
+        }
+        objects.extend(dicts.into_iter().map(|(id, d)| (id, Object::Dictionary(d))));
         Ok(())
     }
 
@@ -340,6 +497,7 @@ impl Editor {
                 }
             }
         }
+        self.write_fields(&mut objects, &mut next)?;
         self.serialize(objects, next)
     }
 

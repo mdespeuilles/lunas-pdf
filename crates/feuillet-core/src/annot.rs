@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+use crate::form::FormField;
 use crate::types::Rect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Type)]
@@ -143,6 +144,11 @@ pub enum AnnotOp {
     Remove {
         id: String,
     },
+    /// Valeur d'un champ de formulaire (voir `FormField::value`).
+    SetField {
+        id: String,
+        value: Vec<String>,
+    },
 }
 
 /// État d'édition renvoyé à l'interface après chaque opération.
@@ -150,6 +156,8 @@ pub enum AnnotOp {
 #[serde(rename_all = "camelCase")]
 pub struct EditState {
     pub annots: Vec<Annot>,
+    /// Champs du formulaire AcroForm (vide sans formulaire).
+    pub fields: Vec<FormField>,
     /// Pages dont le rendu a changé depuis l'état précédent.
     pub changed_pages: Vec<u32>,
     pub can_undo: bool,
@@ -195,8 +203,8 @@ impl History {
     }
 
     /// Applique des opérations et mémorise leur inverse. Renvoie les pages touchées.
-    pub fn apply(&mut self, annots: &mut Vec<Annot>, ops: Vec<AnnotOp>) -> Vec<u32> {
-        let (inverse, pages) = apply_ops(annots, ops);
+    pub fn apply(&mut self, annots: &mut Vec<Annot>, fields: &mut [FormField], ops: Vec<AnnotOp>) -> Vec<u32> {
+        let (inverse, pages) = apply_ops(annots, fields, ops);
         if !inverse.is_empty() {
             self.undo.push(inverse);
             self.redo.clear();
@@ -204,16 +212,16 @@ impl History {
         pages
     }
 
-    pub fn undo(&mut self, annots: &mut Vec<Annot>) -> Vec<u32> {
+    pub fn undo(&mut self, annots: &mut Vec<Annot>, fields: &mut [FormField]) -> Vec<u32> {
         let Some(ops) = self.undo.pop() else { return vec![] };
-        let (inverse, pages) = apply_ops(annots, ops);
+        let (inverse, pages) = apply_ops(annots, fields, ops);
         self.redo.push(inverse);
         pages
     }
 
-    pub fn redo(&mut self, annots: &mut Vec<Annot>) -> Vec<u32> {
+    pub fn redo(&mut self, annots: &mut Vec<Annot>, fields: &mut [FormField]) -> Vec<u32> {
         let Some(ops) = self.redo.pop() else { return vec![] };
-        let (inverse, pages) = apply_ops(annots, ops);
+        let (inverse, pages) = apply_ops(annots, fields, ops);
         self.undo.push(inverse);
         pages
     }
@@ -221,7 +229,7 @@ impl History {
 
 /// Applique les opérations ; renvoie les opérations inverses (dans l'ordre d'annulation)
 /// et les pages touchées. Les opérations sur un identifiant inconnu sont ignorées.
-fn apply_ops(annots: &mut Vec<Annot>, ops: Vec<AnnotOp>) -> (Vec<AnnotOp>, Vec<u32>) {
+fn apply_ops(annots: &mut Vec<Annot>, fields: &mut [FormField], ops: Vec<AnnotOp>) -> (Vec<AnnotOp>, Vec<u32>) {
     let mut inverse = Vec::with_capacity(ops.len());
     let mut pages = vec![];
     for op in ops {
@@ -258,6 +266,17 @@ fn apply_ops(annots: &mut Vec<Annot>, ops: Vec<AnnotOp>) -> (Vec<AnnotOp>, Vec<u
                     annot: old,
                     index: Some(i as u32),
                 });
+            }
+            AnnotOp::SetField { id, value } => {
+                let Some(f) = fields.iter_mut().find(|f| f.id == id) else {
+                    continue;
+                };
+                if f.value == value {
+                    continue;
+                }
+                pages.extend(f.widgets.iter().map(|w| w.page));
+                let old = std::mem::replace(&mut f.value, value);
+                inverse.push(AnnotOp::SetField { id, value: old });
             }
         }
     }
@@ -301,6 +320,7 @@ mod tests {
         moved.rect.x = 50.0;
         h.apply(
             &mut list,
+            &mut [],
             vec![
                 AnnotOp::Add {
                     annot: a("y", 2),
@@ -311,9 +331,9 @@ mod tests {
         );
         assert_eq!(list.len(), 2);
         assert_eq!(list[0].rect.x, 50.0);
-        assert_eq!(h.undo(&mut list), vec![0, 2]);
+        assert_eq!(h.undo(&mut list, &mut []), vec![0, 2]);
         assert_eq!(list, vec![a("x", 0)]);
-        h.redo(&mut list);
+        h.redo(&mut list, &mut []);
         assert_eq!(list[0], moved);
         assert_eq!(list[1].id, "y");
         assert!(h.can_undo() && !h.can_redo());
@@ -327,12 +347,12 @@ mod tests {
         let mut list = vec![hidden];
         let mut moved = a("x", 0);
         moved.rect.x = 40.0;
-        h.apply(&mut list, vec![AnnotOp::Update { annot: moved }]);
-        h.undo(&mut list);
+        h.apply(&mut list, &mut [], vec![AnnotOp::Update { annot: moved }]);
+        h.undo(&mut list, &mut []);
         assert!(!list[0].hidden && list[0].rect.x == 0.0);
         list[0].hidden = true;
-        h.apply(&mut list, vec![AnnotOp::Remove { id: "x".into() }]);
-        h.undo(&mut list);
+        h.apply(&mut list, &mut [], vec![AnnotOp::Remove { id: "x".into() }]);
+        h.undo(&mut list, &mut []);
         assert!(!list[0].hidden);
     }
 
@@ -340,9 +360,9 @@ mod tests {
     fn remove_restores_position() {
         let mut h = History::default();
         let mut list = vec![a("a", 0), a("b", 0), a("c", 0)];
-        h.apply(&mut list, vec![AnnotOp::Remove { id: "b".into() }]);
+        h.apply(&mut list, &mut [], vec![AnnotOp::Remove { id: "b".into() }]);
         assert_eq!(list.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), ["a", "c"]);
-        h.undo(&mut list);
+        h.undo(&mut list, &mut []);
         assert_eq!(list.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), ["a", "b", "c"]);
     }
 

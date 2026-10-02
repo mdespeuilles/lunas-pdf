@@ -15,6 +15,7 @@ const DEFAULTS: Settings = {
   recentsView: "grid",
   sidebarOpen: true,
   authorName: "",
+  highlightFields: true,
 };
 
 /** Accents proposés par le design (props de la planche). */

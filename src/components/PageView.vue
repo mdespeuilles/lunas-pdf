@@ -2,6 +2,7 @@
 // Une page : bitmap (basse résolution d'abord), tuiles au fort zoom, texte, liens, surlignages.
 import { computed, onMounted, ref, watch } from "vue";
 import AnnotLayer from "./AnnotLayer.vue";
+import FormLayer from "./FormLayer.vue";
 import TextLayer from "./TextLayer.vue";
 import TileCanvas from "./TileCanvas.vue";
 import type { LinkInfo, PageGeom, Rect } from "../bindings";
@@ -125,6 +126,7 @@ function px(r: Rect) {
       <span v-if="flash && flashOn" class="flash" :style="px(flash)" />
     </div>
     <TextLayer :doc="doc" :page="box.index" :width-pt="geom.width" :height-pt="geom.height" :scale="k" />
+    <FormLayer v-if="tab.edit?.fields.length && !tab.annotating" :tab="tab" :page="box.index" :k="box.w / geom.width" />
     <AnnotLayer v-if="tab.edit" :tab="tab" :page="box.index" :k="box.w / geom.width" :page-w="geom.width" :page-h="geom.height" />
     <a
       v-for="(l, i) in links"

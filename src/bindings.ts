@@ -17,13 +17,13 @@ export const commands = {
 	setRenderEpoch: (doc: number, epoch: number) => __TAURI_INVOKE<void>("set_render_epoch", { doc, epoch }),
 	getOutline: (doc: number) => typedError<OutlineItem[], PdfError>(__TAURI_INVOKE("get_outline", { doc })),
 	/**  Modèle d'annotations du document (chargé à la demande). */
-	loadAnnotations: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("load_annotations", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i)}) } : v) as typeof v)),
+	loadAnnotations: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("load_annotations", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
 	/**  Applique des opérations (ajout, modification, suppression) en une seule étape d'annulation. */
-	applyAnnotations: (doc: number, ops: AnnotOp[]) => typedError<EditState, PdfError>(__TAURI_INVOKE("apply_annotations", { doc, ops })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i)}) } : v) as typeof v)),
-	undo: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("undo", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i)}) } : v) as typeof v)),
-	redo: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("redo", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i)}) } : v) as typeof v)),
+	applyAnnotations: (doc: number, ops: AnnotOp[]) => typedError<EditState, PdfError>(__TAURI_INVOKE("apply_annotations", { doc, ops })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
+	undo: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("undo", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
+	redo: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("redo", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
 	/**  Masque une annotation pendant son édition en place (hors historique). */
-	setAnnotationHidden: (doc: number, id: string, hidden: boolean) => typedError<EditState, PdfError>(__TAURI_INVOKE("set_annotation_hidden", { doc, id, hidden })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i)}) } : v) as typeof v)),
+	setAnnotationHidden: (doc: number, id: string, hidden: boolean) => typedError<EditState, PdfError>(__TAURI_INVOKE("set_annotation_hidden", { doc, id, hidden })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
 	/**  Boîtes des lignes de texte entre deux points (outils de marquage). */
 	textRange: (doc: number, page: number, from: Point, to: Point) => typedError<TextSelection, PdfError>(__TAURI_INVOKE("text_range", { doc, page, from, to })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,rects:v.data.rects.map(i=>i)}) } : v) as typeof v)),
 	importImage: (doc: number, path: string) => typedError<ImageInfo, PdfError>(__TAURI_INVOKE("import_image", { doc, path })),
@@ -97,9 +97,27 @@ export type AnnotBody = { type: "highlight"; quads: Rect[] } | { type: "underlin
 /**  Opération élémentaire sur les annotations (pattern commande). */
 export type AnnotOp = 
 /**  `index` : position d'insertion (utilisée pour annuler une suppression). */
-{ op: "add"; annot: Annot; index: number | null } | { op: "update"; annot: Annot } | { op: "remove"; id: string };
+{ op: "add"; annot: Annot; index: number | null } | { op: "update"; annot: Annot } | { op: "remove"; id: string } | 
+/**  Valeur d'un champ de formulaire (voir `FormField::value`). */
+{ op: "setField"; id: string; value: string[] };
+
+export type CalcOp = "sum" | "product" | "average" | "min" | "max";
+
+/**  `AFSimple_Calculate`. */
+export type Calculation = {
+	op: CalcOp,
+	/**  Noms de champs (un nom désigne aussi ses descendants : « total » → « total.a »…). */
+	fields: string[],
+};
 
 export type CheckStyle = "check" | "cross" | "dot";
+
+export type ChoiceOption = {
+	/**  Valeur exportée (`/V`). */
+	value: string,
+	/**  Libellé affiché. */
+	label: string,
+};
 
 export type DocInfo = {
 	id: number,
@@ -117,6 +135,8 @@ export type DocInfo = {
 /**  État d'édition renvoyé à l'interface après chaque opération. */
 export type EditState = {
 	annots: Annot[],
+	/**  Champs du formulaire AcroForm (vide sans formulaire). */
+	fields: FormField[],
 	/**  Pages dont le rendu a changé depuis l'état précédent. */
 	changedPages: number[],
 	canUndo: boolean,
@@ -130,6 +150,40 @@ export type EditState = {
 	author: string,
 };
 
+/**  Mise en forme d'un champ texte (actions `/F` et `/K`). */
+export type FieldFormat = 
+/**
+ *  `AFNumber_*` : `sep_style` 0 « 1,234.56 », 1 « 1234.56 », 2 « 1.234,56 », 3 « 1234,56 »,
+ *  4 « 1'234.56 » ; `neg_style` 0 « - », 1 rouge, 2 parenthèses, 3 parenthèses et rouge.
+ */
+{ type: "number"; decimals: number; sepStyle: number; negStyle: number; currency: string; prepend: boolean } | 
+/**  `AFPercent_*` : la valeur 0,15 s'affiche « 15 % ». */
+{ type: "percent"; decimals: number; sepStyle: number } | 
+/**  `AFDate_*` : format Acrobat (`dd/mm/yyyy`, `mmm d, yyyy`…). */
+{ type: "date"; format: string } | 
+/**  `AFTime_*` : `HH:MM`, `h:MM tt`… */
+{ type: "time"; format: string } | 
+/**
+ *  `AFSpecial_*` : 0 code postal, 1 code postal + 4, 2 téléphone, 3 numéro de sécurité
+ *  sociale (États-Unis). La valeur ne garde que les chiffres.
+ */
+{ type: "special"; kind: number } | 
+/**
+ *  `AFSpecial_KeystrokeEx` : masque (9 chiffre, A lettre, O lettre ou chiffre, X tout
+ *  caractère, le reste littéral). La valeur est stockée mise en forme.
+ */
+{ type: "mask"; mask: string };
+
+export type FieldKind = { type: "text"; multiline: boolean; password: boolean; 
+/**  Cases régulières (`/MaxLen` caractères répartis sur la largeur). */
+comb: boolean; maxLen: number | null } | { type: "checkbox" } | { type: "radio" } | { type: "combo"; options: ChoiceOption[]; 
+/**  Saisie libre autorisée. */
+editable: boolean } | { type: "list"; options: ChoiceOption[]; multi: boolean } | 
+/**  Champ de signature (phase 4) : affiché, non rempli ici. */
+{ type: "signature" } | 
+/**  Bouton poussoir : sans valeur. */
+{ type: "button" };
+
 export type FontFamily = 
 /**  Helvetica */
 "sans" | 
@@ -137,6 +191,32 @@ export type FontFamily =
 "serif" | 
 /**  Courier */
 "mono";
+
+export type FormField = {
+	/**  Nom complet du champ (`a.b.c`), unique. */
+	id: string,
+	/**  Info-bulle (`/TU`). */
+	label: string | null,
+	kind: FieldKind,
+	/**  Texte : `[texte]` ; case ou radio : `[état coché]` ou `[]` ; liste : valeurs choisies. */
+	value: string[],
+	/**  Valeur par défaut (`/DV`), rétablie par « Effacer le formulaire ». */
+	defaultValue: string[],
+	readOnly: boolean,
+	required: boolean,
+	/**  Taille du texte (0 = automatique). */
+	fontSize: number,
+	/**  Alignement (`/Q`) : 0 gauche, 1 centre, 2 droite. */
+	align: number,
+	font: FontFamily,
+	widgets: Widget[],
+	/**  Mise en forme, plage autorisée et calcul (fonctions standard d'Acrobat). */
+	format: FieldFormat | null,
+	range: RangeRule | null,
+	calc: Calculation | null,
+	/**  Le champ a des scripts personnalisés, non exécutés. */
+	customScript: boolean,
+};
 
 export type FormKind = "none" | "acroForm" | 
 /**  XFA dynamique : non pris en charge (message clair dans l'UI). */
@@ -189,6 +269,12 @@ export type Point = {
 	y: number,
 };
 
+/**  `AFRange_Validate` (bornes incluses). */
+export type RangeRule = {
+	min: number | null,
+	max: number | null,
+};
+
 export type RecentDoc = {
 	path: string,
 	name: string,
@@ -235,6 +321,8 @@ export type Settings = {
 	sidebarOpen?: boolean,
 	/**  Nom d'auteur des annotations (vide : nom de l'utilisateur du système). */
 	authorName?: string,
+	/**  Fond teinté sur les champs de formulaire (bandeau de la planche 04). */
+	highlightFields?: boolean,
 };
 
 /**
@@ -255,6 +343,14 @@ export type TextSelection = {
 };
 
 export type ThemePref = "system" | "light" | "dark";
+
+export type Widget = {
+	page: number,
+	/**  Rectangle d'affichage (points, repère de la page affichée). */
+	rect: Rect,
+	/**  Nom de l'état « coché » (cases et radios). */
+	onState: string | null,
+};
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

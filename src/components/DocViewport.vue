@@ -4,10 +4,12 @@
 import { ChevronDown, ChevronUp } from "lucide-vue-next";
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import FieldNav from "./FieldNav.vue";
 import PageView, { type PageHighlight } from "./PageView.vue";
 import type { LinkInfo } from "../bindings";
 import { PT_TO_PX, clampZoom, computeLayout, currentPage, fitZoom, scrollTarget, visiblePages } from "../lib/layout";
 import { openUrl } from "../lib/window";
+import { stops } from "../composables/form";
 import { type DocTab, useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 
@@ -16,6 +18,7 @@ const { t } = useI18n();
 const tabs = useTabs();
 const ui = useUi();
 const info = computed(() => props.tab.info!);
+const hasFields = computed(() => !props.tab.annotating && stops(props.tab.edit?.fields ?? []).length > 0);
 
 const scroller = ref<HTMLElement>();
 const vw = ref(800);
@@ -268,7 +271,8 @@ const pageCount = computed(() => info.value.pages.length);
         />
       </div>
     </div>
-    <div class="pind" role="status">
+    <FieldNav v-if="hasFields" :tab="tab" />
+    <div v-else class="pind" role="status">
       <button :aria-label="t('toolbar.prevPage')" :disabled="tab.page <= 0" @click="tabs.step(tab, -1)">
         <ChevronUp class="ic xs" aria-hidden="true" />
       </button>

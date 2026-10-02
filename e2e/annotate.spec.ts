@@ -139,7 +139,7 @@ test("fermeture d'un document modifié : planche 12", async ({ page }) => {
   await expect.poll(async () => (await model(page)).filter((a) => a.body.type === "circle").length).toBe(1);
   await page.keyboard.press("Control+w");
   const dlg = page.getByRole("alertdialog", { name: "Enregistrer les modifications ?" });
-  await expect(dlg).toContainText("« contrat.pdf » contient 1 annotation non enregistrée");
+  await expect(dlg).toContainText("« contrat.pdf » contient 1 modification non enregistrée");
   await dlg.getByRole("button", { name: "Annuler" }).click();
   await expect(dlg).toHaveCount(0);
   await expect(page.getByRole("tab", { name: /contrat\.pdf/ })).toBeVisible();

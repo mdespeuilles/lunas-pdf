@@ -49,6 +49,8 @@ pub struct Settings {
     pub sidebar_open: bool,
     /// Nom d'auteur des annotations (vide : nom de l'utilisateur du système).
     pub author_name: String,
+    /// Fond teinté sur les champs de formulaire (bandeau de la planche 04).
+    pub highlight_fields: bool,
 }
 
 impl Default for Settings {
@@ -61,6 +63,7 @@ impl Default for Settings {
             recents_view: RecentsView::Grid,
             sidebar_open: true,
             author_name: String::new(),
+            highlight_fields: true,
         }
     }
 }

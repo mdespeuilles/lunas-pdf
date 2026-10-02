@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AnnotBar from "./AnnotBar.vue";
 import DocViewport from "./DocViewport.vue";
+import FormBanner from "./FormBanner.vue";
 import Sidebar from "./Sidebar.vue";
 import Toolbar from "./Toolbar.vue";
 import UnlockCard from "./UnlockCard.vue";
@@ -35,6 +36,7 @@ defineExpose({
   <section class="reader">
     <Toolbar ref="toolbar" :tab="tab" :disabled="tab.status !== 'ready'" />
     <AnnotBar v-if="tab.annotating && tab.status === 'ready'" :tab="tab" />
+    <FormBanner v-if="tab.status === 'ready' && tab.edit?.fields.length && !tab.annotating && !tab.formBannerHidden" :tab="tab" />
     <div v-if="tab.status === 'ready' && tab.info?.form === 'xfa' && !xfaDismissed" class="banner warn" role="status">
       <TriangleAlert class="ic bi" aria-hidden="true" />
       <span>{{ t("errors.xfa") }}</span>

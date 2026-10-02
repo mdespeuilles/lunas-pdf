@@ -46,7 +46,9 @@ Modules de `feuillet-core` :
 
 | Module | Rôle |
 |---|---|
-| `annot.rs` | Modèle partagé avec l'UI (`Annot`, `AnnotBody`) en points d'affichage ; opérations `Add` / `Update` / `Remove` ; pile annuler/rétablir (chaque entrée = opérations inverses) |
+| `annot.rs` | Modèle partagé avec l'UI (`Annot`, `AnnotBody`) en points d'affichage ; opérations `Add` / `Update` / `Remove` / `SetField` ; pile annuler/rétablir commune aux annotations et aux champs (chaque entrée = opérations inverses) |
+| `form_script.rs` | Fonctions standard d'Acrobat (`AFNumber_*`, `AFPercent_*`, `AFDate_*`, `AFTime_*`, `AFSpecial_*`, `AFRange_Validate`, `AFSimple_Calculate`) : analyse des scripts en appels à arguments littéraux, mise en forme, calculs. Aucun code du PDF n'est exécuté ; le reste est signalé comme personnalisé |
+| `form.rs` | AcroForm : lecture de l'arbre des champs (attributs hérités, widgets situés par page), valeurs, apparences régénérées des champs texte et des listes (police standard du `/DA`, `/MK`, `/BS`, alignement, multiligne, peigne, taille automatique) |
 | `writer.rs` | `Editor` : analyse lopdf des annotations existantes, diff avec l'état enregistré, production d'**une** révision incrémentale (base + objets modifiés), lecture et écriture chiffrées |
 | `appearance.rs` | Flux `/AP /N` de chaque type ; `/Matrix` qui compense la rotation de page (textes et tampons droits) |
 | `fonts.rs` | Largeurs AFM des polices standard 14 (WinAnsi) pour la mise en page des zones de texte |
@@ -66,7 +68,14 @@ L'original sur disque n'est jamais touché avant « Enregistrer ».
 **Annotations existantes.**
 - Les types gérés (marquage, formes, ligne, zone de texte, note, coches, tampons) entrent dans le modèle et sont pleinement modifiables.
 - Les autres (Ink, Polygon…) peuvent être déplacés ou supprimés : seuls `/Rect` et les tableaux de coordonnées sont translatés, l'apparence d'origine est conservée.
-- Liens, champs et popups ne sont jamais modifiés. Une popup n'est retirée qu'avec son annotation parente.
+- Liens et popups ne sont jamais modifiés. Une popup n'est retirée qu'avec son annotation parente.
+
+**Formulaires.**
+- Les champs sont lus à l'ouverture d'un document à formulaire, avec le modèle d'annotations (`EditState.fields`).
+- Une saisie est une opération `SetField` : elle entre dans le même historique que les annotations.
+- À l'écriture : `/V` (et `/I` pour les listes) sur le champ ; `/AS` sur les widgets des cases et radios, dont les apparences existent ; une apparence `/AP /N` régénérée pour les champs texte et les listes. Les widgets gardent leur numéro d'objet : le tableau `/Annots` n'est pas réécrit.
+- Scripts : les champs exposent `format`, `range`, `calc` et `customScript`. L'interface filtre et valide la saisie (`lib/field-format.ts`) ; l'écrivain recalcule les champs `AFSimple_Calculate` dans l'ordre `/CO` à chaque saisie, dans le même pas d'annulation, et met en forme l'apparence (valeur brute dans `/V`).
+- Côté interface, `FormLayer` superpose des contrôles HTML aux widgets. Hors focus, ils sont transparents et laissent voir l'apparence rendue par PDFium ; avec le focus, le champ texte devient opaque et montre la saisie.
 
 **Enregistrer.**
 - Sans caviardage : écriture atomique de base + révision. Les octets d'origine restent un préfixe exact du fichier, donc les signatures existantes restent intactes (test `signed_document_keeps_signed_bytes`).

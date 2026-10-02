@@ -1,7 +1,7 @@
 // Backend simulé pour les tests de parcours (vite --mode e2e) : remplace src/bindings.ts.
 // Mêmes signatures que les commandes générées par tauri-specta, données déterministes.
 import type {
-  Annot, AnnotOp, DocInfo, EditState, ImageInfo, LinkInfo, OpenFilesEvent, OutlineItem, PageText, PdfError, Point, RecentDoc, Rect, SearchEvent, SearchHit,
+  Annot, AnnotOp, DocInfo, EditState, FormField, ImageInfo, LinkInfo, OpenFilesEvent, OutlineItem, PageText, PdfError, Point, RecentDoc, Rect, SearchEvent, SearchHit,
   Settings, TextRun, TextSelection,
 } from "../../src/bindings";
 
@@ -20,7 +20,7 @@ w.__TAURI_INTERNALS__ = {
   },
   unregisterCallback: (id: number) => callbacks.delete(id),
 };
-const e2e = w.__FEUILLET_E2E__ as { pending?: string[]; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]> };
+const e2e = w.__FEUILLET_E2E__ as { pending?: string[]; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]>; fields?: Record<string, FormField[]> };
 e2e.calls = [];
 
 // --- Documents simulés ---------------------------------------------------------------------------
@@ -38,7 +38,28 @@ const DOCS: Record<string, MockDoc> = {
   "/docs/long.pdf": { pages: 320 },
   "/docs/protege.pdf": { pages: 3, password: "feuillet" },
   "/docs/xfa.pdf": { pages: 2, form: "xfa" },
+  "/docs/formulaire.pdf": { pages: 2, form: "acroForm" },
 };
+
+// Champs du formulaire simulé (mêmes types que le fixture formulaire-acroform.pdf).
+function formFields(): FormField[] {
+  const base = { label: null, readOnly: false, required: false, fontSize: 12, align: 0, font: "sans" as const, format: null, range: null, calc: null, customScript: false };
+  const w = (x: number, y: number, wd: number, h: number, onState: string | null = null, page = 0) => ({ page, rect: { x, y, w: wd, h }, onState });
+  const text = { type: "text" as const, multiline: false, password: false, comb: false, maxLen: null };
+  const opts = (l: string[]) => l.map((v) => ({ value: v, label: v }));
+  return [
+    { ...base, id: "nom", label: "Nom", kind: text, value: [""], defaultValue: [""], widgets: [w(180, 100, 300, 20)] },
+    { ...base, id: "prenom", kind: text, value: [""], defaultValue: [""], widgets: [w(180, 136, 300, 20)] },
+    { ...base, id: "commentaire", kind: { ...text, multiline: true }, value: [""], defaultValue: [""], widgets: [w(180, 172, 300, 60)] },
+    { ...base, id: "accepte", kind: { type: "checkbox" }, value: [], defaultValue: [], widgets: [w(250, 250, 16, 16, "Yes")] },
+    { ...base, id: "formule", kind: { type: "radio" }, value: ["mensuelle"], defaultValue: ["mensuelle"], widgets: [w(180, 290, 16, 16, "mensuelle"), w(290, 290, 16, 16, "annuelle"), w(400, 290, 16, 16, "a_vie")] },
+    { ...base, id: "pays", kind: { type: "combo", options: opts(["France", "Belgique", "Suisse"]), editable: false }, value: ["France"], defaultValue: ["France"], widgets: [w(180, 330, 200, 20)] },
+    { ...base, id: "fixe", readOnly: true, kind: text, value: ["Lecture seule"], defaultValue: ["Lecture seule"], widgets: [w(180, 370, 200, 20)] },
+    { ...base, id: "prix", kind: text, value: [""], defaultValue: [""], widgets: [w(180, 410, 200, 20)], format: { type: "number" as const, decimals: 2, sepStyle: 2, negStyle: 0, currency: " €", prepend: false }, range: { min: 0, max: 10000 } },
+    { ...base, id: "date", kind: text, value: [""], defaultValue: [""], widgets: [w(180, 450, 200, 20)], format: { type: "date" as const, format: "dd/mm/yyyy" }, customScript: true },
+    { ...base, id: "ville", kind: text, value: [""], defaultValue: [""], widgets: [w(180, 120, 300, 20, null, 1)] },
+  ];
+}
 
 let nextId = 1;
 const open = new Map<number, string>();
@@ -49,6 +70,8 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 interface Ed {
   annots: Annot[];
   saved: Annot[];
+  fields: FormField[];
+  savedFields: FormField[];
   undo: AnnotOp[][];
   redo: AnnotOp[][];
 }
@@ -60,15 +83,24 @@ function editor(doc: number): Ed {
       { id: "ex1", page: 1, rect: { x: 72, y: 98, w: 200, h: 12 }, color: "#ffd43b", opacity: 1, width: 1, contents: "À vérifier", author: "Claire", modified: "D:20261002083800Z", excerpt: "Le prix forfaitaire", body: { type: "highlight", quads: [{ x: 72, y: 98, w: 200, h: 12 }] }, hidden: false },
       { id: "ex2", page: 5, rect: { x: 500, y: 60, w: 22, h: 22 }, color: "#ffd43b", opacity: 1, width: 1, contents: "Note de relecture", author: null, modified: null, excerpt: null, body: { type: "note" }, hidden: false },
     ];
-    ed = { annots: clone(initial), saved: clone(initial), undo: [], redo: [] };
+    const form = DOCS[open.get(doc) ?? ""]?.form === "acroForm";
+    const annots = form ? [] : initial;
+    const fields = form ? formFields() : [];
+    ed = { annots: clone(annots), saved: clone(annots), fields: clone(fields), savedFields: clone(fields), undo: [], redo: [] };
     editors.set(doc, ed);
   }
   return ed;
 }
-function applyOps(list: Annot[], ops: AnnotOp[]): AnnotOp[] {
+function applyOps(ed: Ed, ops: AnnotOp[]): AnnotOp[] {
+  const list = ed.annots;
   const inv: AnnotOp[] = [];
   for (const op of clone(ops)) {
-    if (op.op === "add") {
+    if (op.op === "setField") {
+      const f = ed.fields.find((x) => x.id === op.id);
+      if (!f || f.readOnly || JSON.stringify(f.value) === JSON.stringify(op.value)) continue;
+      inv.push({ op: "setField", id: f.id, value: f.value });
+      f.value = op.value;
+    } else if (op.op === "add") {
       const a = { ...op.annot, author: op.annot.author ?? "Moi", modified: "D:20261002104200Z" };
       list.splice(op.index ?? list.length, 0, a);
       inv.push({ op: "remove", id: a.id });
@@ -87,15 +119,18 @@ function applyOps(list: Annot[], ops: AnnotOp[]): AnnotOp[] {
   return inv.reverse();
 }
 function pagesOf(ops: AnnotOp[], ed: Ed): number[] {
-  return [...new Set(ops.map((o) => (o.op === "remove" ? (ed.annots.find((a) => a.id === o.id)?.page ?? 0) : o.annot.page)))];
+  return [...new Set(ops.flatMap((o) => (o.op === "setField" ? (ed.fields.find((f) => f.id === o.id)?.widgets.map((w) => w.page) ?? []) : o.op === "remove" ? [ed.annots.find((a) => a.id === o.id)?.page ?? 0] : [o.annot.page])))];
 }
 function state(doc: number, changedPages: number[]): EditState {
   const ed = editor(doc);
   const key = (a: Annot) => JSON.stringify({ ...a, hidden: false });
-  const unsaved = ed.annots.filter((a) => !ed.saved.some((s) => key(s) === key(a))).length + ed.saved.filter((s) => !ed.annots.some((a) => a.id === s.id)).length;
+  const changedFields = ed.fields.filter((f, i) => JSON.stringify(f.value) !== JSON.stringify(ed.savedFields[i]?.value)).length;
+  const unsaved = ed.annots.filter((a) => !ed.saved.some((s) => key(s) === key(a))).length + ed.saved.filter((s) => !ed.annots.some((a) => a.id === s.id)).length + changedFields;
   (e2e.saved ??= {})[open.get(doc) ?? ""] = ed.annots;
+  (e2e.fields ??= {})[open.get(doc) ?? ""] = ed.fields;
   return {
     annots: clone(ed.annots),
+    fields: clone(ed.fields),
     changedPages,
     canUndo: ed.undo.length > 0,
     canRedo: ed.redo.length > 0,
@@ -178,7 +213,7 @@ export const commands = {
   },
   async applyAnnotations(doc: number, ops: AnnotOp[]): Res<EditState> {
     const ed = editor(doc);
-    const inverse = applyOps(ed.annots, ops);
+    const inverse = applyOps(ed, ops);
     ed.undo.push(inverse);
     ed.redo = [];
     return ok(state(doc, pagesOf(ops, ed)));
@@ -187,14 +222,14 @@ export const commands = {
     const ed = editor(doc);
     const ops = ed.undo.pop();
     if (!ops) return ok(state(doc, []));
-    ed.redo.push(applyOps(ed.annots, ops));
+    ed.redo.push(applyOps(ed, ops));
     return ok(state(doc, pagesOf(ops, ed)));
   },
   async redo(doc: number): Res<EditState> {
     const ed = editor(doc);
     const ops = ed.redo.pop();
     if (!ops) return ok(state(doc, []));
-    ed.undo.push(applyOps(ed.annots, ops));
+    ed.undo.push(applyOps(ed, ops));
     return ok(state(doc, pagesOf(ops, ed)));
   },
   async setAnnotationHidden(doc: number, id: string, hidden: boolean): Res<EditState> {
@@ -228,6 +263,7 @@ export const commands = {
     const ed = editor(doc);
     ed.annots = ed.annots.filter((a) => a.body.type !== "redact");
     ed.saved = clone(ed.annots);
+    ed.savedFields = clone(ed.fields);
     ed.undo = [];
     ed.redo = [];
     const p = path ?? open.get(doc)!;

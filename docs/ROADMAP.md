@@ -27,7 +27,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 | Formulaire XFA : message clair | ✅ | |
 | CI GitHub Actions (lint, tests, builds Linux, macOS, Windows) | 🟡 | Écrite, jamais exécutée (pas de dépôt distant) |
 
-## Phase 2 : annotation ✅ (en attente de validation)
+## Phase 2 : annotation ✅ (validée)
 
 | Fonction | État | Notes |
 |---|---|---|
@@ -53,10 +53,28 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - La confirmation du caviardage n'a pas de planche dédiée : elle reprend la modale de la planche 12.
 - L'historique d'annulation est vidé après « Enregistrer ».
 
-## Phase 3 : formulaires ⬜
+## Phase 3 : formulaires ✅ (en attente de validation)
 
-- Saisie AcroForm, Tab / Maj Tab, « Champ n sur N », génération des apparences.
-- Bandeau « Surligner les champs » et « Effacer le formulaire ».
+| Fonction | État | Notes |
+|---|---|---|
+| Lecture des champs AcroForm : texte, multiligne, mot de passe, peigne, case, radio, liste déroulante (éditable ou non), liste (choix multiple ou non) | ✅ | Attributs hérités, noms complets, widgets multiples, lecture seule et obligatoire |
+| Saisie directe sur la page, contrôles superposés aux widgets | ✅ | Clic, Espace, sélection ; Échap annule la saisie en cours |
+| Tab / Maj Tab, pastille « Champ n sur N » | ✅ | Ordre : page, puis lignes de haut en bas et de gauche à droite ; un arrêt par groupe radio ; boucle à la fin |
+| Génération des apparences (texte et listes), `/V`, `/AS`, `/I` | ✅ | Rendu vérifié avec PDFium et Poppler ; 🟡 Acrobat et Aperçu non vérifiés |
+| Bandeau : « Surligner les champs » (mémorisé), « Effacer le formulaire » (valeurs par défaut), masquer | ✅ | |
+| Annuler / rétablir commun aux annotations et aux champs | ✅ | « Effacer le formulaire » = un seul pas |
+| Enregistrement incrémental des valeurs | ✅ | Relu après réouverture |
+| Scripts standard d'Acrobat : formats nombre, monnaie, pourcentage, date, heure, spéciaux et masques ; `AFRange_Validate` ; `AFSimple_Calculate` dans l'ordre `/CO` | ✅ | Réimplémentés, aucun code du PDF n'est exécuté. Saisie filtrée et validée (message, valeur précédente rétablie) ; apparence mise en forme ; le calcul entre dans le même pas d'annulation que la saisie. Fixture : `fixtures/formulaire-scripts.pdf` |
+
+Écarts et limites :
+- La modale de fermeture parle de « modifications » (la planche 12 dit « annotations ») : elle compte aussi les champs remplis.
+- Scripts personnalisés (tout code autre que les fonctions standard, y compris la « notation simplifiée » des calculs et les scripts du document) : non exécutés, signalés dans le bandeau.
+- Les calculs ne sont pas relancés à l'ouverture, seulement après une saisie.
+- Pourcentages : on saisit « 15 » pour 15 % (Acrobat attend 0,15) ; la valeur enregistrée reste 0,15, comme dans Acrobat.
+- Noms de mois des dates (`mmm`, `mmmm`) écrits en anglais, comme Acrobat, pour rester lisibles par les autres lecteurs ; les noms français sont acceptés à la saisie.
+- Champs de signature : affichés, non remplis (phase 4). Boutons poussoirs ignorés.
+- Les champs non saisissables en mode annotation : les outils prennent la main sur la page.
+- Texte hors WinAnsi : « ? » dans l'apparence, comme pour les zones de texte (le texte exact reste dans `/V`).
 
 ## Phase 4 : signatures ⬜
 

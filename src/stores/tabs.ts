@@ -55,6 +55,11 @@ export interface DocTab {
   epoch: number;
   /** Annotation à faire clignoter après navigation depuis la liste. */
   flash: { page: number; rect: Rect; seq: number } | null;
+  /** Champ de formulaire ayant le focus, et demande de focus (navigation Tab). */
+  focusedField: string | null;
+  formFocus: { id: string; seq: number } | null;
+  /** Bandeau « Ce document contient un formulaire » masqué. */
+  formBannerHidden: boolean;
   /** Position de défilement mémorisée (changement d'onglet). */
   scroll?: { top: number; left: number };
 }
@@ -98,6 +103,9 @@ export const useTabs = defineStore("tabs", () => {
       nav: null,
       epoch: 0,
       flash: null,
+      focusedField: null,
+      formFocus: null,
+      formBannerHidden: false,
     }) as DocTab;
   }
 
@@ -108,6 +116,8 @@ export const useTabs = defineStore("tabs", () => {
       tab.status = "ready";
       tab.wrongPassword = false;
       tab.name = tab.info.name;
+      // Formulaire : champs chargés d'emblée pour la saisie.
+      if (tab.info.form === "acroForm") void loadAnnotations(tab);
     } catch (e) {
       const err = e instanceof BackendError ? e.error : ({ kind: "engine", message: String(e) } as PdfError);
       if (err.kind === "passwordRequired" || err.kind === "wrongPassword") {
