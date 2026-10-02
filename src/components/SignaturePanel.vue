@@ -34,6 +34,16 @@ async function trust() {
   }
 }
 
+/** Origine de la confiance : liste de l'UE (pays), programme Microsoft, système, utilisateur. */
+function sourceText(src: string) {
+  if (src.startsWith("eu:")) {
+    const code = src.slice(3);
+    const country = new Intl.DisplayNames(locale.value, { type: "region" }).of(code === "EL" ? "GR" : code) ?? code;
+    return t("sig.source.eu", { country });
+  }
+  return t(`sig.source.${src}`);
+}
+
 function statusText(s: SignatureInfo) {
   if (s.status === "valid") return { title: t("sig.status.valid"), text: s.coversWhole ? t("sig.status.validText") : t("sig.status.validLaterText") };
   if (s.status === "invalid") return { title: t("sig.status.invalid"), text: t(`sig.problem.${s.problem ?? "modified"}`) };
@@ -68,7 +78,7 @@ function details(s: SignatureInfo): string {
       [t("sig.validity"), `${shortDate(c.notBefore, locale.value)} → ${shortDate(c.notAfter, locale.value)}`],
       [t("sig.serial"), c.serial],
       ["SHA-256", c.sha256],
-      [t("sig.chain"), c.chain.join(" → ")],
+      [t("sig.chain"), c.chain.join(" → ") + (s.trustSource ? ` (${sourceText(s.trustSource)})` : "")],
     );
   }
   return rows.filter(([, v]) => v).map(([k, v]) => `${k} : ${v}`).join("\n");
@@ -136,6 +146,7 @@ async function copy() {
           <span class="dt">{{ t("sig.chain") }}</span>
           <span class="dd">
             <span v-if="sig.trusted" class="okt"><CircleCheck class="ic xs" aria-hidden="true" />{{ t("sig.trusted") }}</span>
+            <span v-if="sig.trusted && sig.trustSource" class="src">{{ sourceText(sig.trustSource) }}</span>
             <span v-else class="wt"><CircleHelp class="ic xs" aria-hidden="true" />{{ t("sig.untrusted") }}</span>
           </span>
           <span class="dt">SHA-256</span><span class="dd mono" :title="sig.certificate.sha256">{{ shortFingerprint(sig.certificate.sha256) }}</span>
@@ -197,6 +208,7 @@ async function copy() {
 .dim { color: var(--text-2); }
 .okt, .wt { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
 .okt { color: var(--ok); } .wt { color: var(--warn); }
+.src { display: block; color: var(--text-2); font-size: 12px; margin-top: 2px; }
 .hr { height: 1px; background: var(--line); margin: 16px 16px 0; }
 .mono { font-family: ui-monospace, "JetBrains Mono", "DejaVu Sans Mono", Menlo, monospace; font-size: 11.5px; letter-spacing: .02em; }
 .acts { display: flex; gap: 8px; padding: 18px 16px; flex-wrap: wrap; }

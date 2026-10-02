@@ -53,6 +53,7 @@ Modules de `feuillet-core` :
 | `appearance.rs` | Flux `/AP /N` de chaque type ; `/Matrix` qui compense la rotation de page (textes et tampons droits) |
 | `fonts.rs` | Largeurs AFM des polices standard 14 (WinAnsi) pour la mise en page des zones de texte |
 | `signature.rs` | Vérification des signatures numériques : plage `/ByteRange`, CMS détaché (empreinte, signature RSA / RSA-PSS / ECDSA), chaîne de certificats jusqu'au magasin du système, jeton d'horodatage RFC 3161. Lecture seule, sur les octets enregistrés, hors du fil du moteur |
+| `trust_lists.rs` | Listes de confiance : lecture de la liste des listes de l'UE et des listes nationales (autorités qualifiées, horodatage qualifié, périodes d'agrément), rapport CCADB des racines Microsoft ; instantané embarqué, téléchargement (fonctionnalité `trust-fetch`) |
 | `redact.rs` | Caviardage réel à l'enregistrement : réécriture des flux de contenu, des images et des formulaires ; réécriture complète du fichier |
 | `pdfwrite.rs` | Sérialisation d'objets PDF |
 | `fsutil.rs` | Écriture atomique |

@@ -47,6 +47,7 @@ export const commands = {
 	/**  Approuve l'autorité en haut de la chaîne de la signature `field`. */
 	trustSignatureRoot: (doc: number, field: string) => typedError<TrustedRoot, PdfError>(__TAURI_INVOKE("trust_signature_root", { doc, field })),
 	listTrustedRoots: () => __TAURI_INVOKE<TrustedRoot[]>("list_trusted_roots").then((v) => (v.map(i=>i) as typeof v)),
+	trustListsInfo: () => __TAURI_INVOKE<TrustListsInfo>("trust_lists_info"),
 	removeTrustedRoot: (id: string) => typedError<null, PdfError>(__TAURI_INVOKE("remove_trusted_root", { id })),
 	getPageText: (doc: number, page: number) => typedError<PageText, PdfError>(__TAURI_INVOKE("get_page_text", { doc, page })),
 	/**  Recherche plein texte ; les résultats arrivent page par page sur `on_event`. */
@@ -71,6 +72,7 @@ export const commands = {
 /** Events */
 export const events = {
 	openFilesEvent: makeEvent<OpenFilesEvent>("open-files-event"),
+	trustListsUpdatedEvent: makeEvent<TrustListsUpdatedEvent>("trust-lists-updated-event"),
 };
 
 /* Types */
@@ -412,8 +414,10 @@ export type SignatureInfo = {
 	intact: boolean,
 	/**  La signature couvre tout le fichier (sinon : révisions ajoutées après signature). */
 	coversWhole: boolean,
-	/**  Chaîne de certificats jusqu'à une autorité reconnue par le système. */
+	/**  Chaîne de certificats jusqu'à une autorité reconnue. */
 	trusted: boolean,
+	/**  Origine de cette reconnaissance : « system », « user », « eu:IT », « microsoft ». */
+	trustSource: string | null,
 	/**  Certificat valide à la date de signature. */
 	certValidAtSigning: boolean,
 	/**  Horodatage : date (secondes Unix) et vérification de son jeton. */
@@ -445,6 +449,19 @@ export type TextSelection = {
 };
 
 export type ThemePref = "system" | "light" | "dark";
+
+/**  État des listes de confiance (UE, Microsoft) utilisées pour vérifier les signatures. */
+export type TrustListsInfo = {
+	/**  Date de génération (millisecondes Unix). */
+	generated: number,
+	eu: number,
+	microsoft: number,
+};
+
+/**  Listes de confiance mises à jour : les signatures ouvertes sont à revérifier. */
+export type TrustListsUpdatedEvent = {
+	generated: number,
+};
 
 /**  Autorité de certification approuvée par l'utilisateur pour vérifier les signatures. */
 export type TrustedRoot = {

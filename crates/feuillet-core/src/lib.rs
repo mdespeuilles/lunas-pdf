@@ -14,6 +14,7 @@ pub mod pdfwrite;
 pub mod redact;
 pub mod signature;
 pub mod text;
+pub mod trust_lists;
 pub mod types;
 pub mod writer;
 

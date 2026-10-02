@@ -49,7 +49,7 @@ function signatureOf(status: SignatureInfo["status"]): SignatureInfo {
   return {
     field: "Signature1", page: 0, rect: { x: 72, y: 600, w: 220, h: 60 }, status,
     signer: "Claire Martin", organization: "Atelier Vauban SARL", signedAt: 1790598720, utcOffset: 120,
-    reason: "Bon pour accord", location: "Lyon", intact: status !== "invalid", coversWhole: true, trusted: status === "valid",
+    reason: "Bon pour accord", location: "Lyon", intact: status !== "invalid", coversWhole: true, trusted: status === "valid", trustSource: status === "valid" ? "eu:IT" : null,
     certValidAtSigning: true, timestamp: null, timestampVerified: false, timestampTrusted: false, subFilter: "ETSI.CAdES.detached",
     problem: status === "valid" ? null : status === "invalid" ? "modified" : "untrusted",
     certificate: {
@@ -292,6 +292,9 @@ export const commands = {
     trustedRoots = [r];
     return ok(r);
   },
+  trustListsInfo(): Promise<{ generated: number; eu: number; microsoft: number }> {
+    return Promise.resolve({ generated: Date.UTC(2026, 9, 2), eu: 3414, microsoft: 283 });
+  },
   async listTrustedRoots(): Promise<TrustedRoot[]> {
     return clone(trustedRoots);
   },
@@ -399,5 +402,8 @@ export const events = {
       (w.__FEUILLET_E2E__ as Record<string, unknown>).emitOpen = (paths: string[]) => cb({ payload: { paths } });
       return () => {};
     },
+  },
+  trustListsUpdatedEvent: {
+    listen: async (_cb: unknown) => () => {},
   },
 };

@@ -10,15 +10,18 @@ import Modal from "./Modal.vue";
 import { ACCENTS, useSettings } from "../stores/settings";
 import { useUi } from "../stores/ui";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const settings = useSettings();
 const ui = useUi();
 const tabs = useTabs();
 
 // Autorités de signature approuvées depuis le panneau « Signature numérique ».
 const trusted = ref<TrustedRoot[]>([]);
+const lists = ref<{ generated: number; eu: number; microsoft: number } | null>(null);
 onMounted(async () => {
-  if (inTauri || "__FEUILLET_E2E__" in window) trusted.value = await commands.listTrustedRoots();
+  if (!inTauri && !("__FEUILLET_E2E__" in window)) return;
+  trusted.value = await commands.listTrustedRoots();
+  lists.value = await commands.trustListsInfo();
 });
 async function untrust(r: TrustedRoot) {
   await unwrap(commands.removeTrustedRoot(r.id));
@@ -85,6 +88,12 @@ async function untrust(r: TrustedRoot) {
         <span class="hint">{{ t("prefs.windowControlsHint") }}</span>
       </span>
     </label>
+    <div v-if="lists" class="field">
+      <span>
+        <span class="ttl">{{ t("prefs.trustLists") }}</span>
+        <span class="hint">{{ t("prefs.trustListsHint", { eu: lists.eu, ms: lists.microsoft, date: new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(lists.generated) }) }}</span>
+      </span>
+    </div>
     <div v-if="trusted.length" class="field trusted">
       <span>
         <span class="ttl">{{ t("prefs.trustedRoots") }}</span>

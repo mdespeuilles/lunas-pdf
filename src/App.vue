@@ -47,6 +47,8 @@ onMounted(async () => {
   });
   if (inTauri || "__FEUILLET_E2E__" in window) {
     await events.openFilesEvent.listen((e) => openPaths(e.payload.paths));
+    // Listes de confiance rafraîchies en arrière-plan : revérification des signatures.
+    await events.trustListsUpdatedEvent.listen(() => void useTabs().reloadAllSignatures());
     const pending = await commands.takePendingFiles();
     if (pending.length) openPaths(pending);
   }

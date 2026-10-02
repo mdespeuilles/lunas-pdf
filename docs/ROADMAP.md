@@ -76,7 +76,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - Les champs non saisissables en mode annotation : les outils prennent la main sur la page.
 - Texte hors WinAnsi : « ? » dans l'apparence, comme pour les zones de texte (le texte exact reste dans `/V`).
 
-## Phase 4 : signatures ✅ (en attente de validation)
+## Phase 4 : signatures ✅ (validée)
 
 | Fonction | État | Notes |
 |---|---|---|
@@ -84,6 +84,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 | Chaîne de certificats jusqu'au magasin du système, validité à la date de signature | ✅ | `rustls-native-certs` ; pas de contrôle de révocation (CRL, OCSP) |
 | CMS encodé en BER (longueurs indéfinies : Dropbox Sign…) | ✅ | Réencodé en DER avant analyse |
 | Autorités de signature approuvées par l'utilisateur (panneau, après confirmation de l'empreinte ; retrait dans les préférences) | ✅ | Le magasin du système ne contient que des autorités web : Notarius (Dropbox Sign), par exemple, n'y figure pas. La liste d'Adobe (AATL) n'est pas redistribuable |
+| Listes de confiance : listes officielles de l'UE (eIDAS : autorités qualifiées et horodatage qualifié, périodes d'agrément à la date de signature) et racines du programme Microsoft (CCADB : signature de documents, courriel, authentification) | ✅ | Instantané embarqué (`crates/feuillet-core/data`, régénéré par l'exemple `trust_lists`), rafraîchi chaque semaine en arrière-plan ; origine affichée dans le panneau. Vérifié sur des documents réels : Adobe Acrobat Sign (liste italienne), Dropbox Sign et sceau DocuSign (Microsoft) |
 | Échec de lecture ou algorithme inconnu : « non vérifiable », pas « invalide » | ✅ | « Invalide » est réservé au contenu modifié ou à une plage signée incohérente |
 | Horodatage RFC 3161 : empreinte et signature du jeton | ✅ | 🟡 sans fixture horodatée |
 | 3 bandeaux (valide, invalide, non vérifiable), panneau de détails (planche 05), certificat, copie des détails | ✅ | « Valide, des ajouts ont été faits depuis » pour une révision ajoutée après signature |
@@ -97,7 +98,10 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - Le texte de l'avertissement diffère de la planche 06 : celle-ci annonce que la modification « invalidera » la signature. Comme Feuillet enregistre en incrémental, la version signée reste vérifiable ; le texte le dit.
 - Une signature manuscrite est une image, pas une signature numérique : créer une signature numérique (certificat, PAdES) n'est pas prévu.
 - Le type de signature enregistrée (« Signature » / « Paraphe » sur la planche) n'est pas distingué : toutes s'appellent « Signature ».
-- Révocation des certificats (CRL, OCSP) et listes de confiance européennes (EUTL) non consultées.
+- Révocation des certificats (CRL, OCSP) non consultée.
+- Les signatures XML des listes de confiance ne sont pas vérifiées : elles sont téléchargées en HTTPS depuis les sites officiels (Commission européenne, autorités nationales, CCADB).
+- La liste d'Adobe (AATL) n'est pas redistribuable : les autorités qu'elle seule contient restent « non vérifiables » sans approbation manuelle. Exemple : les signataires DocuSign standard (« DocuSign Cloud Signing CA - SI1 », racine « OpenTrust Root CA G1 ») ; la variante qualifiée « Premium » figure, elle, dans la liste française.
+- Racines Microsoft retenues sur leurs usages déclarés (signature de documents, courriel, authentification de personnes) : plus large que la seule signature de documents, comme Acrobat lorsqu'il s'appuie sur le magasin Windows.
 - Pas de détail des modifications faites après la signature (Acrobat distingue les modifications autorisées).
 
 ## Phase 5 : organisation des pages ⬜

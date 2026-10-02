@@ -24,6 +24,15 @@ p384 = { version = "0.13", features = ["ecdsa"] }
 sha1 = { version = "0.10", features = ["oid"] }
 sha2 = { version = "0.10", features = ["oid"] }
 rustls-native-certs = "0.8"
+# Listes de confiance (UE, Microsoft) : analyse et téléchargement.
+quick-xml = "0.38"
+base64 = "0.22"
+serde_json.workspace = true
+ureq = { version = "2", optional = true }
+
+[features]
+# Téléchargement des listes de confiance (application, régénération de l'instantané).
+trust-fetch = ["dep:ureq"]
 
 [dev-dependencies]
 der = { version = "0.7", features = ["pem"] }

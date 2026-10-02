@@ -40,6 +40,7 @@ test.describe("Signatures numériques", () => {
     await expect(panel).toContainText("Atelier Vauban SARL");
     await expect(panel).toContainText("Bon pour accord");
     await expect(panel).toContainText("Approuvée");
+    await expect(panel).toContainText("liste de confiance de l’UE (Italie)");
     await expect(panel).toContainText("4F:2A:91:C3 … 7C:0E");
     await expect(panel).toContainText("(UTC+2)");
     await panel.getByRole("button", { name: "Afficher le certificat" }).click();
@@ -73,6 +74,7 @@ test.describe("Signatures numériques", () => {
 
     await page.keyboard.press("Control+,");
     const prefs = page.getByRole("dialog", { name: "Préférences" });
+    await expect(prefs).toContainText("3414 autorités des listes officielles de l’UE (eIDAS) et 283 racines du programme Microsoft");
     await prefs.getByRole("button", { name: "Ne plus faire confiance à « Autorité de test »" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Signature non vérifiable" })).toBeVisible();
   });

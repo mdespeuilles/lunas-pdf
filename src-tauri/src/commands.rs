@@ -306,6 +306,28 @@ pub async fn trust_signature_root(
     store.add_trusted(&der, name, now_ms()).map_err(io)
 }
 
+/// État des listes de confiance (UE, Microsoft) utilisées pour vérifier les signatures.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustListsInfo {
+    /// Date de génération (millisecondes Unix).
+    pub generated: f64,
+    pub eu: u32,
+    pub microsoft: u32,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn trust_lists_info() -> TrustListsInfo {
+    let b = feuillet_core::trust_lists::current();
+    let eu = b.anchors.iter().filter(|a| a.source.starts_with("eu:")).count() as u32;
+    TrustListsInfo {
+        generated: b.generated as f64 * 1000.0,
+        eu,
+        microsoft: b.anchors.len() as u32 - eu,
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn list_trusted_roots(store: State<'_, Store>) -> Vec<TrustedRoot> {

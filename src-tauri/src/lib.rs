@@ -20,6 +20,40 @@ pub struct OpenFilesEvent {
     pub paths: Vec<String>,
 }
 
+/// Listes de confiance mises à jour : les signatures ouvertes sont à revérifier.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct TrustListsUpdatedEvent {
+    pub generated: f64,
+}
+
+/// Listes de confiance : version en cache si plus récente que l'instantané embarqué, puis
+/// téléchargement en arrière-plan quand elles ont plus de 7 jours.
+fn refresh_trust_lists(app: tauri::AppHandle, cache: std::path::PathBuf) {
+    use feuillet_core::trust_lists::{self, Bundle};
+    std::thread::spawn(move || {
+        if let Some(b) = std::fs::read(&cache).ok().and_then(|gz| Bundle::from_gz(&gz)) {
+            trust_lists::set_current(b);
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        if now - trust_lists::current().generated < 7 * 86_400 {
+            return;
+        }
+        match trust_lists::fetch(now) {
+            Ok(b) => {
+                let _ = store::write_atomic(&cache, &b.to_gz());
+                let generated = b.generated as f64;
+                if trust_lists::set_current(b) {
+                    let _ = TrustListsUpdatedEvent { generated }.emit(&app);
+                }
+            }
+            Err(e) => eprintln!("[feuillet] listes de confiance non mises à jour : {e}"),
+        }
+    });
+}
+
 pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
         .commands(collect_commands![
@@ -45,6 +79,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::get_signatures,
             commands::trust_signature_root,
             commands::list_trusted_roots,
+            commands::trust_lists_info,
             commands::remove_trusted_root,
             commands::get_page_text,
             commands::search,
@@ -58,7 +93,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::take_pending_files,
             commands::log_frontend_error,
         ])
-        .events(collect_events![OpenFilesEvent])
+        .events(collect_events![OpenFilesEvent, TrustListsUpdatedEvent])
         // Les flottants transmis (géométrie) ne sont jamais NaN : `number` plutôt que `number | null`.
         .semantic_types(specta_typescript::semantic::Configuration::empty().enable_lossless_floats())
 }
@@ -158,6 +193,7 @@ pub fn run() {
             let paths = app.path();
             let store = Store::load(paths.app_config_dir()?, paths.app_cache_dir()?);
             engine.set_author(commands::author_name(&store.settings.lock().unwrap()));
+            refresh_trust_lists(app.handle().clone(), paths.app_cache_dir()?.join("trust-anchors.json.gz"));
             app.manage(engine);
             app.manage(store);
             Ok(())

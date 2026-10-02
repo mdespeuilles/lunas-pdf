@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use der::DecodePem;
-use feuillet_core::signature::{SigStatus, verify_document};
+use feuillet_core::signature::{SigStatus, TrustStore, verify_document};
 use x509_cert::Certificate;
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -18,7 +18,7 @@ fn test_root() -> Certificate {
 fn valid_signature_with_and_without_trust() {
     let bytes = fixture("signe-valide.pdf");
     // Certificat autosigné inconnu du système : intacte mais non vérifiable.
-    let s = verify_document(&bytes, None, &[]);
+    let s = verify_document(&bytes, None, &TrustStore::default());
     assert_eq!(s.len(), 1);
     let s = &s[0];
     assert_eq!(s.field, "Signature1");
@@ -38,15 +38,16 @@ fn valid_signature_with_and_without_trust() {
     assert_eq!(c.chain, ["Camille Testeur"]);
 
     // Avec le certificat de test comme autorité reconnue : valide.
-    let s = &verify_document(&bytes, None, &[test_root()])[0];
+    let s = &verify_document(&bytes, None, &TrustStore::of(&[test_root()], "user"))[0];
     assert!(s.trusted && s.cert_valid_at_signing);
+    assert_eq!(s.trust_source.as_deref(), Some("user"));
     assert_eq!(s.status, SigStatus::Valid);
     assert_eq!(s.problem, None);
 }
 
 #[test]
 fn altered_document_is_invalid() {
-    let s = &verify_document(&fixture("signe-altere.pdf"), None, &[test_root()])[0];
+    let s = &verify_document(&fixture("signe-altere.pdf"), None, &TrustStore::of(&[test_root()], "user"))[0];
     assert!(!s.intact);
     assert_eq!(s.status, SigStatus::Invalid);
     assert_eq!(s.problem.as_deref(), Some("modified"));
@@ -54,7 +55,11 @@ fn altered_document_is_invalid() {
 
 #[test]
 fn later_revision_keeps_signature_intact() {
-    let s = &verify_document(&fixture("signe-puis-annote.pdf"), None, &[test_root()])[0];
+    let s = &verify_document(
+        &fixture("signe-puis-annote.pdf"),
+        None,
+        &TrustStore::of(&[test_root()], "user"),
+    )[0];
     assert!(s.intact && !s.covers_whole);
     assert_eq!(s.status, SigStatus::Valid);
 }
@@ -66,8 +71,8 @@ fn system_trust_store_is_loaded() {
 
 #[test]
 fn unsigned_document_has_no_signature() {
-    assert!(verify_document(&fixture("texte-simple.pdf"), None, &[]).is_empty());
-    assert!(verify_document(&fixture("formulaire-acroform.pdf"), None, &[]).is_empty());
+    assert!(verify_document(&fixture("texte-simple.pdf"), None, &TrustStore::default()).is_empty());
+    assert!(verify_document(&fixture("formulaire-acroform.pdf"), None, &TrustStore::default()).is_empty());
 }
 
 /// Réencode un élément DER en BER, tous les éléments construits en longueur indéfinie.
@@ -135,7 +140,7 @@ fn ber_encoded_signature_is_read() {
     new_hex.extend(std::iter::repeat_n('0', end - start - new_hex.len()));
     bytes[start..end].copy_from_slice(new_hex.as_bytes());
 
-    let s = &verify_document(&bytes, None, &[test_root()])[0];
+    let s = &verify_document(&bytes, None, &TrustStore::of(&[test_root()], "user"))[0];
     assert!(s.intact, "{:?}", s.problem);
     assert_eq!(s.status, SigStatus::Valid);
 }
@@ -146,7 +151,7 @@ fn unreadable_signature_is_unknown_not_invalid() {
     let nums = byte_range(&bytes);
     let start = nums[0] + nums[1] + 1;
     bytes[start..start + 8].copy_from_slice(b"ffffffff");
-    let s = &verify_document(&bytes, None, &[test_root()])[0];
+    let s = &verify_document(&bytes, None, &TrustStore::of(&[test_root()], "user"))[0];
     assert_eq!(s.problem.as_deref(), Some("cms"));
     assert_eq!(s.status, SigStatus::Unknown);
 }
@@ -165,4 +170,38 @@ fn approving_the_chain_root_makes_the_signature_valid() {
     let s = &verify_document(&bytes, None, &roots_with(&[der]))[0];
     assert_eq!(s.status, SigStatus::Valid);
     assert!(chain_root(&bytes, None, "Inconnu").is_none());
+}
+
+#[test]
+fn trust_list_anchor_counts_only_during_its_approval_period() {
+    use feuillet_core::signature::TrustAnchor;
+    let bytes = fixture("signe-valide.pdf");
+    let signed_at = verify_document(&bytes, None, &TrustStore::default())[0].signed_at.unwrap() as i64;
+    let store = |periods| TrustStore {
+        anchors: vec![TrustAnchor {
+            cert: test_root(),
+            source: "eu:FR".into(),
+            periods,
+        }],
+    };
+    let s = &verify_document(&bytes, None, &store(vec![(signed_at - 10, None)]))[0];
+    assert_eq!((s.status, s.trust_source.as_deref()), (SigStatus::Valid, Some("eu:FR")));
+    // Agrément retiré avant la signature : non reconnue.
+    let s = &verify_document(&bytes, None, &store(vec![(0, Some(signed_at - 10))]))[0];
+    assert_eq!(s.status, SigStatus::Unknown);
+}
+
+#[test]
+fn bundled_trust_lists_are_present() {
+    let b = feuillet_core::trust_lists::bundled();
+    assert!(b.generated > 0);
+    assert!(b.anchors.iter().filter(|a| a.source.starts_with("eu:")).count() > 1000);
+    assert!(b.anchors.iter().filter(|a| a.source == "microsoft").count() > 100);
+    // Autorités des services courants (Adobe Acrobat Sign, Dropbox Sign, DocuSign).
+    for name in [
+        "Intesi Group EU Qualified Electronic Seal CA G2",
+        "Notarius Root Certificate Authority",
+    ] {
+        assert!(b.anchors.iter().any(|a| a.name == name), "{name}");
+    }
 }

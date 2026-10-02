@@ -74,8 +74,10 @@ pub struct SignatureInfo {
     pub intact: bool,
     /// La signature couvre tout le fichier (sinon : révisions ajoutées après signature).
     pub covers_whole: bool,
-    /// Chaîne de certificats jusqu'à une autorité reconnue par le système.
+    /// Chaîne de certificats jusqu'à une autorité reconnue.
     pub trusted: bool,
+    /// Origine de cette reconnaissance : « system », « user », « eu:IT », « microsoft ».
+    pub trust_source: Option<String>,
     /// Certificat valide à la date de signature.
     pub cert_valid_at_signing: bool,
     /// Horodatage : date (secondes Unix) et vérification de son jeton.
@@ -144,8 +146,89 @@ pub fn system_roots() -> &'static [Certificate] {
     })
 }
 
-/// Vérifie toutes les signatures d'un fichier. `roots` : autorités reconnues.
-pub fn verify_document(bytes: &[u8], password: Option<&str>, roots: &[Certificate]) -> Vec<SignatureInfo> {
+/// Autorité de confiance : certificat, origine, périodes de reconnaissance (vide : toujours).
+pub struct TrustAnchor {
+    pub cert: Certificate,
+    pub source: String,
+    pub periods: Vec<(i64, Option<i64>)>,
+}
+
+/// Autorités reconnues : magasin du système, autorités approuvées, listes de confiance.
+#[derive(Default)]
+pub struct TrustStore {
+    pub anchors: Vec<TrustAnchor>,
+}
+
+impl TrustStore {
+    /// Certificats reconnus en permanence, d'une même origine.
+    pub fn of(certs: &[Certificate], source: &str) -> TrustStore {
+        TrustStore {
+            anchors: certs
+                .iter()
+                .map(|c| TrustAnchor {
+                    cert: c.clone(),
+                    source: source.into(),
+                    periods: vec![],
+                })
+                .collect(),
+        }
+    }
+
+    /// Système + autorités approuvées (DER) + listes de confiance.
+    pub fn new(user: &[Vec<u8>], lists: &crate::trust_lists::Bundle) -> TrustStore {
+        let mut s = TrustStore::of(system_roots(), "system");
+        s.anchors.extend(
+            user.iter()
+                .filter_map(|d| Certificate::from_der(d).ok())
+                .map(|cert| TrustAnchor {
+                    cert,
+                    source: "user".into(),
+                    periods: vec![],
+                }),
+        );
+        s.anchors.extend(lists.anchors.iter().filter_map(|a| {
+            Some(TrustAnchor {
+                cert: Certificate::from_der(&a.der_bytes()?).ok()?,
+                source: a.source.clone(),
+                periods: a.periods.clone(),
+            })
+        }));
+        s
+    }
+
+    fn at(&self, t: i64) -> impl Iterator<Item = &TrustAnchor> {
+        self.anchors
+            .iter()
+            .filter(move |a| a.periods.is_empty() || a.periods.iter().any(|(s, e)| t >= *s && e.is_none_or(|e| t < e)))
+    }
+}
+
+/// Magasin par défaut (système, autorités approuvées, listes courantes), gardé en cache.
+pub fn default_store(user: &[Vec<u8>]) -> std::sync::Arc<TrustStore> {
+    use std::sync::{Arc, Mutex};
+    static CACHE: Mutex<Option<(u64, Arc<TrustStore>)>> = Mutex::new(None);
+    let lists = crate::trust_lists::current();
+    let key = {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        lists.generated.hash(&mut h);
+        lists.anchors.len().hash(&mut h);
+        user.hash(&mut h);
+        h.finish()
+    };
+    let mut c = CACHE.lock().unwrap();
+    if let Some((k, s)) = c.as_ref()
+        && *k == key
+    {
+        return s.clone();
+    }
+    let s = Arc::new(TrustStore::new(user, &lists));
+    *c = Some((key, s.clone()));
+    s
+}
+
+/// Vérifie toutes les signatures d'un fichier avec les autorités de `store`.
+pub fn verify_document(bytes: &[u8], password: Option<&str>, store: &TrustStore) -> Vec<SignatureInfo> {
     let opts = lopdf::LoadOptions {
         password: password.map(str::to_owned),
         ..Default::default()
@@ -160,7 +243,7 @@ pub fn verify_document(bytes: &[u8], password: Option<&str>, roots: &[Certificat
             continue; // champ vide (pas encore signé)
         };
         let (page, rect) = widget_place(&doc, &pages, &widget);
-        out.push(verify_one(bytes, &name, v, page, rect, roots));
+        out.push(verify_one(bytes, &name, v, page, rect, store));
     }
     out
 }
@@ -288,7 +371,7 @@ fn verify_one(
     v: &Dictionary,
     page: Option<u32>,
     rect: Option<Rect>,
-    roots: &[Certificate],
+    store: &TrustStore,
 ) -> SignatureInfo {
     let (pdf_time, pdf_offset) = text(v, b"M").and_then(|m| parse_pdf_date(&m)).unzip();
     let mut info = SignatureInfo {
@@ -305,6 +388,7 @@ fn verify_one(
         intact: false,
         covers_whole: false,
         trusted: false,
+        trust_source: None,
         cert_valid_at_signing: false,
         timestamp: None,
         timestamp_verified: false,
@@ -317,7 +401,7 @@ fn verify_one(
             .map(|s| String::from_utf8_lossy(s).into_owned()),
         problem: None,
     };
-    if let Err(p) = check(bytes, v, roots, &mut info) {
+    if let Err(p) = check(bytes, v, store, &mut info) {
         info.problem = Some(p.into());
     }
     // Invalide seulement si la vérification a pu conclure à une modification ; un échec de
@@ -382,7 +466,7 @@ fn embedded_certs(sd: &SignedData) -> Vec<Certificate> {
         .collect()
 }
 
-fn check(bytes: &[u8], v: &Dictionary, roots: &[Certificate], info: &mut SignatureInfo) -> Result<(), &'static str> {
+fn check(bytes: &[u8], v: &Dictionary, store: &TrustStore, info: &mut SignatureInfo) -> Result<(), &'static str> {
     let ((a, b, c, d), sd) = signed_range(bytes, v)?;
     info.covers_whole = c + d == bytes.len() || bytes[c + d..].iter().all(|x| x.is_ascii_whitespace());
     let si = sd.signer_infos.0.iter().next().ok_or("cms")?;
@@ -411,20 +495,23 @@ fn check(bytes: &[u8], v: &Dictionary, roots: &[Certificate], info: &mut Signatu
 
     // Horodatage (attribut non signé) : empreinte de la valeur de signature.
     if let Some(tok) = attr(si.unsigned_attrs.as_ref(), OID_TIMESTAMP_TOKEN)
-        && let Some((time, ok, trusted)) = check_timestamp(&tok.to_der().unwrap_or_default(), si.signature.as_bytes(), roots)
+        && let Some((time, ok, trusted)) = check_timestamp(&tok.to_der().unwrap_or_default(), si.signature.as_bytes(), store)
     {
         info.timestamp = Some(time as f64);
         info.timestamp_verified = ok;
         info.timestamp_trusted = ok && trusted;
     }
 
-    let (chain, trusted) = build_chain(signer, &certs, roots);
-    info.trusted = trusted;
+    // Confiance évaluée à la date de signature (horodatage reconnu, sinon date déclarée).
     let at = info
         .timestamp
         .filter(|_| info.timestamp_trusted)
         .or(info.signed_at)
         .unwrap_or_else(|| now() as f64);
+    let (chain, source) = build_chain(signer, &certs, Some((store, at as i64)));
+    let trusted = source.is_some();
+    info.trusted = trusted;
+    info.trust_source = source;
     info.cert_valid_at_signing = (cert_info.not_before..=cert_info.not_after).contains(&at);
     let top = chain.last().unwrap_or(signer);
     info.certificate = Some(CertInfo {
@@ -692,16 +779,29 @@ fn cert_signed_by(cert: &Certificate, issuer: &Certificate) -> bool {
 }
 
 /// Chaîne du signataire vers une racine reconnue ; vrai si elle aboutit.
-fn build_chain(signer: &Certificate, pool: &[Certificate], roots: &[Certificate]) -> (Vec<Certificate>, bool) {
+/// Même autorité : même titulaire et même clé (un certificat réémis compte).
+fn same_cert(a: &Certificate, b: &Certificate) -> bool {
+    a.tbs_certificate.subject == b.tbs_certificate.subject
+        && a.tbs_certificate.subject_public_key_info == b.tbs_certificate.subject_public_key_info
+}
+
+/// Chaîne du signataire ; `Some(origine)` si elle aboutit à une autorité reconnue à la date `t`.
+fn build_chain(
+    signer: &Certificate,
+    pool: &[Certificate],
+    store: Option<(&TrustStore, i64)>,
+) -> (Vec<Certificate>, Option<String>) {
     let mut chain = vec![signer.clone()];
     for _ in 0..10 {
         let cur = chain.last().unwrap().clone();
-        if roots.iter().any(|r| r == &cur) {
-            return (chain, true);
-        }
-        if let Some(root) = roots.iter().find(|r| cert_signed_by(&cur, r)) {
-            chain.push(root.clone());
-            return (chain, true);
+        if let Some((store, t)) = store {
+            if let Some(a) = store.at(t).find(|a| same_cert(&a.cert, &cur)) {
+                return (chain, Some(a.source.clone()));
+            }
+            if let Some(a) = store.at(t).find(|a| cert_signed_by(&cur, &a.cert)) {
+                chain.push(a.cert.clone());
+                return (chain, Some(a.source.clone()));
+            }
         }
         match pool
             .iter()
@@ -711,12 +811,12 @@ fn build_chain(signer: &Certificate, pool: &[Certificate], roots: &[Certificate]
             None => break,
         }
     }
-    (chain, false)
+    (chain, None)
 }
 
 /// Jeton d'horodatage (RFC 3161) : (date, jeton correct et lié à cette signature, autorité
 /// d'horodatage reconnue).
-fn check_timestamp(token: &[u8], signature: &[u8], roots: &[Certificate]) -> Option<(i64, bool, bool)> {
+fn check_timestamp(token: &[u8], signature: &[u8], store: &TrustStore) -> Option<(i64, bool, bool)> {
     let ci = ContentInfo::from_der(token).ok()?;
     let sd: SignedData = ci.content.decode_as().ok()?;
     let econtent = sd.encap_content_info.econtent.as_ref()?;
@@ -733,7 +833,7 @@ fn check_timestamp(token: &[u8], signature: &[u8], roots: &[Certificate]) -> Opt
         let cert = find_signer(si, &certs)?;
         let hash = Hash::from_digest_oid(&si.digest_alg.oid)?;
         let sig_ok = verify_signer(si, &hash.digest(&[&tst_der]), hash, cert).ok()?;
-        Some((sig_ok, build_chain(cert, &certs, roots).1))
+        Some((sig_ok, build_chain(cert, &certs, Some((store, time))).1.is_some()))
     })()
     .unwrap_or((false, false));
     Some((time, imprint_ok && ok.0, ok.1))
@@ -814,13 +914,9 @@ fn cert_info_fingerprint(c: &Certificate) -> String {
         .join(":")
 }
 
-/// Racines du système et autorités approuvées par l'utilisateur (DER).
-pub fn roots_with(extra: &[Vec<u8>]) -> Vec<Certificate> {
-    system_roots()
-        .iter()
-        .cloned()
-        .chain(extra.iter().filter_map(|d| Certificate::from_der(d).ok()))
-        .collect()
+/// Racines du système et autorités approuvées par l'utilisateur (DER), sans les listes.
+pub fn roots_with(extra: &[Vec<u8>]) -> TrustStore {
+    TrustStore::new(extra, &crate::trust_lists::Bundle::default())
 }
 
 /// Haut de la chaîne de la signature `field` : (DER, nom), pour l'approuver.
@@ -835,7 +931,7 @@ pub fn chain_root(bytes: &[u8], password: Option<&str>, field: &str) -> Option<(
     let (_, sd) = signed_range(bytes, v).ok()?;
     let certs = embedded_certs(&sd);
     let signer = find_signer(sd.signer_infos.0.iter().next()?, &certs)?;
-    let (chain, _) = build_chain(signer, &certs, &[]);
+    let (chain, _) = build_chain(signer, &certs, None);
     let top = chain.last()?;
     let name = common_name(&top.tbs_certificate.subject).unwrap_or_else(|| top.tbs_certificate.subject.to_string());
     Some((top.to_der().ok()?, name))

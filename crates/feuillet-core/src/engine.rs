@@ -224,13 +224,14 @@ impl Engine {
         self.call(|reply| Msg::SavedBytes { doc, reply })
     }
     /// Vérifie les signatures numériques du fichier enregistré (hors du fil du moteur).
-    /// `trusted` : autorités approuvées par l'utilisateur (DER), en plus du système.
+    /// `trusted` : autorités approuvées par l'utilisateur (DER), en plus du système et des
+    /// listes de confiance.
     pub fn signatures(&self, doc: DocId, trusted: &[Vec<u8>]) -> Result<Vec<crate::signature::SignatureInfo>> {
         let (bytes, password) = self.saved_file(doc)?;
         Ok(crate::signature::verify_document(
             &bytes,
             password.as_deref(),
-            &crate::signature::roots_with(trusted),
+            &crate::signature::default_store(trusted),
         ))
     }
     pub fn links(&self, doc: DocId, page: u32) -> Result<Vec<LinkInfo>> {
