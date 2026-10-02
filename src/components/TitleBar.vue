@@ -9,6 +9,7 @@ import { useSettings } from "../stores/settings";
 import { useTabs } from "../stores/tabs";
 import { openFromDialog } from "../composables/open";
 import { confirmQuit, requestClose } from "../composables/save";
+import { pageDrag } from "../composables/page-drag";
 
 const { t } = useI18n();
 const tabs = useTabs();
@@ -46,7 +47,8 @@ function onTabMouseDown(e: MouseEvent, key: string) {
         v-for="tab in tabs.tabs"
         :key="tab.key"
         class="tab"
-        :class="{ on: tab.key === tabs.activeKey }"
+        :class="{ on: tab.key === tabs.activeKey, spring: pageDrag?.spring === tab.key }"
+        :data-tab-key="tab.key"
         role="tab"
         :aria-selected="tab.key === tabs.activeKey"
         :title="tab.path"
@@ -97,6 +99,8 @@ function onTabMouseDown(e: MouseEvent, key: string) {
 .tab .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tab.on { background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(0, 0, 0, .06); }
 :root.dark .tab.on { background: var(--surface-2); }
+/* Onglet survolé pendant un glisser de pages : il s'affiche après un court délai. */
+.tab.spring { box-shadow: 0 0 0 2px var(--accent); }
 .tab:focus-visible { box-shadow: var(--ring); }
 .dirty { width: 8px; height: 8px; border-radius: 50%; background: var(--text-2); flex: none; }
 .tab .dirty + .cl { display: none; }

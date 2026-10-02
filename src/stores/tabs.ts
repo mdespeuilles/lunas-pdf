@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, reactive, ref } from "vue";
 import { Channel } from "@tauri-apps/api/core";
-import type { Annot, AnnotOp, DocInfo, EditState, OutlineItem, PdfError, Rect, SearchEvent, SearchHit, SignatureInfo } from "../bindings";
+import type { Annot, AnnotOp, DocInfo, EditState, OutlineItem, PageOp, PdfError, Rect, SearchEvent, SearchHit, SignatureInfo } from "../bindings";
 import { BackendError, commands, unwrap } from "../lib/api";
 import { bitmaps } from "../lib/bitmap-cache";
 import { dropDocData } from "../lib/page-data";
@@ -66,6 +66,11 @@ export interface DocTab {
   sigPanel: boolean;
   sigSelected: number;
   sigBannerHidden: boolean;
+  /** Mode « Organiser les pages » (planche 08), pages sélectionnées dans la grille. */
+  organizing: boolean;
+  orgSel: number[];
+  /** Document affiché côte à côte (clé d'onglet). */
+  orgSide: string | null;
   /** Position de défilement mémorisée (changement d'onglet). */
   scroll?: { top: number; left: number };
 }
@@ -116,6 +121,9 @@ export const useTabs = defineStore("tabs", () => {
       sigPanel: false,
       sigSelected: 0,
       sigBannerHidden: false,
+      organizing: false,
+      orgSel: [],
+      orgSide: null,
     }) as DocTab;
   }
 
@@ -156,7 +164,8 @@ export const useTabs = defineStore("tabs", () => {
     await Promise.all(tabs.value.filter((t) => t.info?.signatureCount).map((t) => loadSignatures(t)));
   }
 
-  async function openPaths(paths: string[]) {
+  /** Ouvre des documents (un onglet chacun) ; `activate` : affiche le dernier. */
+  async function openPaths(paths: string[], activate = true): Promise<DocTab | null> {
     let last: DocTab | null = null;
     for (const path of paths) {
       const existing = tabs.value.find((t) => t.path === path);
@@ -169,7 +178,8 @@ export const useTabs = defineStore("tabs", () => {
       last = tab;
       void load(tabs.value.at(-1)!);
     }
-    if (last) activeKey.value = last.key;
+    if (last && activate) activeKey.value = last.key;
+    return last;
   }
 
   async function unlock(tab: DocTab, password: string, remember: boolean) {
@@ -246,6 +256,18 @@ export const useTabs = defineStore("tabs", () => {
   // --- Annotations -------------------------------------------------------------------------
 
   function applyState(tab: DocTab, st: EditState) {
+    if (st.pages && tab.info) {
+      // Pages ajoutées, retirées, déplacées ou pivotées : tout est à redessiner.
+      tab.info = { ...tab.info, pages: st.pages };
+      bitmaps.dropDoc(tab.info.id);
+      dropDocData(tab.info.id);
+      for (let p = 0; p < st.pages.length; p++) tab.pageRev[p] = (tab.pageRev[p] ?? 0) + 1;
+      tab.outline = null;
+      if (tab.sidebarTab === "outline") void loadOutline(tab);
+      tab.page = Math.min(tab.page, st.pages.length - 1);
+      tab.orgSel = tab.orgSel.filter((i) => i < st.pages!.length);
+      tab.search.hits = [];
+    }
     for (const p of st.changedPages) tab.pageRev[p] = (tab.pageRev[p] ?? 0) + 1;
     tab.edit = st;
     tab.dirty = st.dirty;
@@ -285,7 +307,21 @@ export const useTabs = defineStore("tabs", () => {
   const removeAnnot = (tab: DocTab, id: string) => applyOps(tab, [{ op: "remove", id }]);
   const undo = (tab: DocTab) => editCall(tab, (doc) => commands.undo(doc));
   const redo = (tab: DocTab) => editCall(tab, (doc) => commands.redo(doc));
+  const applyPages = (tab: DocTab, op: PageOp) => editCall(tab, (doc) => commands.applyPages(doc, op));
   const setHidden = (tab: DocTab, id: string, hidden: boolean) => editCall(tab, (doc) => commands.setAnnotationHidden(doc, id, hidden));
+
+  function toggleOrganizing(tab: DocTab, on = !tab.organizing) {
+    tab.organizing = on;
+    if (on) {
+      tab.annotating = false;
+      tab.selected = null;
+      tab.orgSel = [tab.page];
+      void loadAnnotations(tab);
+    } else {
+      tab.orgSide = null;
+      if (tab.orgSel.length) goto(tab, tab.orgSel[0]);
+    }
+  }
 
   function toggleAnnotating(tab: DocTab, on = !tab.annotating) {
     tab.annotating = on;
@@ -398,6 +434,8 @@ export const useTabs = defineStore("tabs", () => {
     redo,
     setHidden,
     toggleAnnotating,
+    toggleOrganizing,
+    applyPages,
     save,
     search,
     selectHit,

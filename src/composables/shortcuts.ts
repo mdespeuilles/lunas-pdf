@@ -2,9 +2,11 @@
 import { onBeforeUnmount, onMounted } from "vue";
 import { moved, canMove } from "../lib/annot-geom";
 import { TOOL_KEYS, useAnnotTools } from "../stores/annotTools";
-import { useTabs } from "../stores/tabs";
+import { type DocTab, useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useAnnotClipboard } from "./clipboard";
+import { useOrganize } from "./organize";
+import { usePageClipboard } from "./page-clipboard";
 import { stops, useForm } from "./form";
 import { markupFromSelection } from "./markup";
 import { openFromDialog } from "./open";
@@ -28,6 +30,8 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
   const tools = useAnnotTools();
   const clipboard = useAnnotClipboard();
   const form = useForm();
+  const organize = useOrganize();
+  const pageClip = usePageClipboard();
 
   function onKey(e: KeyboardEvent) {
     const ctrl = e.ctrlKey || e.metaKey;
@@ -48,9 +52,21 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
 
     // Enregistrement et annotation
     if (ctrl && key === "s") return run(e, () => saveTab(tab, e.shiftKey));
+    if (ctrl && e.shiftKey && key === "o") return run(e, () => tabs.toggleOrganizing(tab));
+    if (tab.organizing) return organizeKeys(e, tab, typing, ctrl, key);
     if (ctrl && e.shiftKey && key === "a") return run(e, () => toggleAnnotate(tab));
     if (!typing && ctrl && (key === "y" || (key === "z" && e.shiftKey))) return run(e, () => tabs.redo(tab));
     if (!typing && ctrl && key === "z") return run(e, () => tabs.undo(tab));
+    // Miniatures de la barre latérale : opérations sur la page qui a le focus.
+    const thumb = (e.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-thumbs] [data-index]");
+    if (thumb && !typing) {
+      const i = Number(thumb.dataset.index);
+      if (ctrl && !e.shiftKey && (key === "c" || key === "x")) return run(e, () => pageClip.copy(tab, [i], key === "x"));
+      if (ctrl && !e.shiftKey && key === "v") return run(e, () => pageClip.paste(tab, i + 1));
+      if (ctrl && !e.shiftKey && key === "d") return run(e, () => ((tab.orgSel = [i]), organize.duplicate(tab)));
+      if (ctrl && key === "r") return run(e, () => organize.rotatePages(tab, [i], e.shiftKey ? -90 : 90));
+      if (!ctrl && (e.key === "Delete" || e.key === "Backspace")) return run(e, () => ((tab.orgSel = [i]), organize.remove(tab)));
+    }
     // Presse-papiers des annotations ; sans annotation sélectionnée, Ctrl C copie le texte.
     if (!typing && ctrl && !e.shiftKey && (key === "c" || key === "x")) {
       if (clipboard.copy(tab, key === "x")) return run(e, () => {});
@@ -110,6 +126,26 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
     if (e.key === "ArrowRight") return run(e, () => tabs.step(tab, 1));
     if (e.key === "Home") return run(e, () => tabs.goto(tab, 0));
     if (e.key === "End") return run(e, () => tabs.goto(tab, tabs.pageCount(tab) - 1));
+  }
+
+  /** Mode « Organiser les pages » : actions sur la sélection du volet actif. */
+  function organizeKeys(e: KeyboardEvent, tab: DocTab, typing: boolean, ctrl: boolean, key: string) {
+    if (typing) return;
+    const pane = document.activeElement?.closest<HTMLElement>("[data-pane]")?.dataset.pane;
+    const target = tabs.tabs.find((t) => t.key === pane && t.status === "ready") ?? tab;
+    if (ctrl && (key === "y" || (key === "z" && e.shiftKey))) return run(e, () => tabs.redo(target));
+    if (ctrl && key === "z") return run(e, () => tabs.undo(target));
+    if (ctrl && key === "a") return run(e, () => (target.orgSel = Array.from({ length: tabs.pageCount(target) }, (_, i) => i)));
+    if (ctrl && key === "r") return run(e, () => organize.rotate(target, e.shiftKey ? -90 : 90));
+    if (ctrl && !e.shiftKey && key === "d") return run(e, () => organize.duplicate(target));
+    if (ctrl && !e.shiftKey && (key === "c" || key === "x")) return run(e, () => pageClip.copy(target, target.orgSel, key === "x"));
+    if (ctrl && !e.shiftKey && key === "v") {
+      const at = target.orgSel.length ? Math.max(...target.orgSel) + 1 : tabs.pageCount(target);
+      return run(e, () => pageClip.paste(target, at));
+    }
+    if (ctrl && e.shiftKey && key === "n") return run(e, () => organize.insertBlank(target));
+    if (!ctrl && (e.key === "Delete" || e.key === "Backspace")) return run(e, () => organize.remove(target));
+    if (e.key === "Escape") return run(e, () => (target.orgSel.length ? (target.orgSel = []) : tabs.toggleOrganizing(tab, false)));
   }
 
   function run(e: KeyboardEvent, f: () => unknown) {

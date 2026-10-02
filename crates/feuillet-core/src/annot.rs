@@ -169,6 +169,8 @@ pub struct EditState {
     pub unsaved_count: u32,
     /// Auteur des nouvelles annotations (« Vous » dans la liste).
     pub author: String,
+    /// Nouvelle géométrie des pages quand leur nombre, leur ordre ou leur rotation a changé.
+    pub pages: Option<Vec<crate::types::PageGeom>>,
 }
 
 /// Couleur « #rrggbb » → composantes 0–1.
@@ -183,11 +185,17 @@ pub fn format_color(rgb: [f32; 3]) -> String {
     format!("#{:02x}{:02x}{:02x}", c(rgb[0]), c(rgb[1]), c(rgb[2]))
 }
 
-/// Pile annuler/rétablir : chaque entrée est la liste d'opérations inverses.
+/// Entrée de la pile annuler/rétablir : opérations inverses, ou état complet antérieur (pour
+/// les opérations sur les pages, qui réécrivent le document).
+pub enum Entry {
+    Ops(Vec<AnnotOp>),
+    Snapshot(Box<crate::writer::Snapshot>),
+}
+
 #[derive(Default)]
 pub struct History {
-    undo: Vec<Vec<AnnotOp>>,
-    redo: Vec<Vec<AnnotOp>>,
+    pub(crate) undo: Vec<Entry>,
+    pub(crate) redo: Vec<Entry>,
 }
 
 impl History {
@@ -206,24 +214,41 @@ impl History {
     pub fn apply(&mut self, annots: &mut Vec<Annot>, fields: &mut [FormField], ops: Vec<AnnotOp>) -> Vec<u32> {
         let (inverse, pages) = apply_ops(annots, fields, ops);
         if !inverse.is_empty() {
-            self.undo.push(inverse);
+            self.undo.push(Entry::Ops(inverse));
             self.redo.clear();
         }
         pages
     }
 
-    pub fn undo(&mut self, annots: &mut Vec<Annot>, fields: &mut [FormField]) -> Vec<u32> {
-        let Some(ops) = self.undo.pop() else { return vec![] };
-        let (inverse, pages) = apply_ops(annots, fields, ops);
-        self.redo.push(inverse);
-        pages
+    pub fn push_snapshot(&mut self, s: crate::writer::Snapshot) {
+        self.undo.push(Entry::Snapshot(Box::new(s)));
+        self.redo.clear();
     }
 
-    pub fn redo(&mut self, annots: &mut Vec<Annot>, fields: &mut [FormField]) -> Vec<u32> {
-        let Some(ops) = self.redo.pop() else { return vec![] };
-        let (inverse, pages) = apply_ops(annots, fields, ops);
-        self.undo.push(inverse);
-        pages
+    /// Annule une entrée d'opérations ; une entrée d'état est rendue telle quelle (l'éditeur
+    /// la restaure et pousse l'état courant dans l'autre pile).
+    pub fn undo(&mut self, annots: &mut Vec<Annot>, fields: &mut [FormField]) -> Result<Vec<u32>, Box<crate::writer::Snapshot>> {
+        match self.undo.pop() {
+            None => Ok(vec![]),
+            Some(Entry::Ops(ops)) => {
+                let (inverse, pages) = apply_ops(annots, fields, ops);
+                self.redo.push(Entry::Ops(inverse));
+                Ok(pages)
+            }
+            Some(Entry::Snapshot(s)) => Err(s),
+        }
+    }
+
+    pub fn redo(&mut self, annots: &mut Vec<Annot>, fields: &mut [FormField]) -> Result<Vec<u32>, Box<crate::writer::Snapshot>> {
+        match self.redo.pop() {
+            None => Ok(vec![]),
+            Some(Entry::Ops(ops)) => {
+                let (inverse, pages) = apply_ops(annots, fields, ops);
+                self.undo.push(Entry::Ops(inverse));
+                Ok(pages)
+            }
+            Some(Entry::Snapshot(s)) => Err(s),
+        }
     }
 }
 
@@ -331,9 +356,9 @@ mod tests {
         );
         assert_eq!(list.len(), 2);
         assert_eq!(list[0].rect.x, 50.0);
-        assert_eq!(h.undo(&mut list, &mut []), vec![0, 2]);
+        assert_eq!(h.undo(&mut list, &mut []).ok().unwrap(), vec![0, 2]);
         assert_eq!(list, vec![a("x", 0)]);
-        h.redo(&mut list, &mut []);
+        h.redo(&mut list, &mut []).ok().unwrap();
         assert_eq!(list[0], moved);
         assert_eq!(list[1].id, "y");
         assert!(h.can_undo() && !h.can_redo());
@@ -348,11 +373,11 @@ mod tests {
         let mut moved = a("x", 0);
         moved.rect.x = 40.0;
         h.apply(&mut list, &mut [], vec![AnnotOp::Update { annot: moved }]);
-        h.undo(&mut list, &mut []);
+        h.undo(&mut list, &mut []).ok().unwrap();
         assert!(!list[0].hidden && list[0].rect.x == 0.0);
         list[0].hidden = true;
         h.apply(&mut list, &mut [], vec![AnnotOp::Remove { id: "x".into() }]);
-        h.undo(&mut list, &mut []);
+        h.undo(&mut list, &mut []).ok().unwrap();
         assert!(!list[0].hidden);
     }
 
@@ -362,7 +387,7 @@ mod tests {
         let mut list = vec![a("a", 0), a("b", 0), a("c", 0)];
         h.apply(&mut list, &mut [], vec![AnnotOp::Remove { id: "b".into() }]);
         assert_eq!(list.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), ["a", "c"]);
-        h.undo(&mut list, &mut []);
+        h.undo(&mut list, &mut []).ok().unwrap();
         assert_eq!(list.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), ["a", "b", "c"]);
     }
 

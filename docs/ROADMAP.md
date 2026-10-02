@@ -104,11 +104,30 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - Racines Microsoft retenues sur leurs usages déclarés (signature de documents, courriel, authentification de personnes) : plus large que la seule signature de documents, comme Acrobat lorsqu'il s'appuie sur le magasin Windows.
 - Pas de détail des modifications faites après la signature (Acrobat distingue les modifications autorisées).
 
-## Phase 5 : organisation des pages ⬜
+## Phase 5 : organisation des pages ✅ (validée)
 
-- Grille, sélection multiple, glisser-déposer, rotation, duplication, suppression, page blanche, extraction.
-- Côte à côte, copie entre documents (fusion des signets et de l'AcroForm).
-- Glisser vers le gestionnaire de fichiers (`tauri-plugin-drag`, à valider).
+| Fonction | État | Notes |
+|---|---|---|
+| Mode « Organiser les pages » (Ctrl Maj O) : barre de la planche 08, « Lecture », « Terminé » | ✅ | Double-clic ou Entrée sur une page : retour à la lecture sur cette page |
+| Grille de miniatures, taille réglable, sélection multiple (clic, Ctrl, Maj, Ctrl A, flèches, Espace) | ✅ | Miniatures chargées à l'approche de la zone visible |
+| Glisser-déposer : repère d'insertion, aperçu, « Déplacer avant la page n » | ✅ | Glisser à la souris (pas le glisser HTML, capté par la fenêtre native), défilement automatique |
+| Pivoter (Ctrl R, Ctrl Maj R), dupliquer (Ctrl D), page blanche (Ctrl Maj N), supprimer (Suppr) | ✅ | Les annotations suivent leur page ; un document garde au moins une page |
+| Extraire en PDF | ✅ | Nouveau fichier avec les pages, leurs annotations, leurs champs et les signets qui y mènent |
+| Côte à côte : un onglet ouvert ou un autre fichier ; copie par glisser (« Copier avant la page n ») | ✅ | Champs de formulaire ajoutés à l'AcroForm (noms en double renommés « _2 »), polices du formulaire reprises, signets ajoutés à la suite |
+| Annuler / rétablir commun avec les annotations et les champs | ✅ | Chaque opération sur les pages est un pas (instantané de l'état) |
+| Enregistrement incrémental | ✅ | Révisions ajoutées : la partie signée d'un document signé reste intacte ; avertissement avant de réorganiser un document signé |
+| Barre latérale : glisser une miniature pour réordonner, vers un autre onglet pour copier (survoler l'onglet l'affiche), boutons de rotation au survol | ✅ | Ctrl C / X / V, Ctrl D, Ctrl R, Suppr sur la miniature qui a le focus |
+| Fichiers PDF déposés sur les miniatures : pages insérées à cet endroit | ✅ | Ailleurs dans la fenêtre, le dépôt ouvre toujours le fichier ; document protégé : message |
+| Copier, couper, coller des pages (Ctrl C / X / V) dans la grille et la barre latérale, entre documents | ✅ | Copie figée au moment du Ctrl C (document en mémoire) ; collage après la sélection |
+| Glisser des pages vers le gestionnaire de fichiers | ⬜ | `tauri-plugin-drag` non intégré : « Extraire en PDF » en attendant |
+
+Écarts et limites :
+- Le badge « pivotée » de la planche n'est pas affiché : la géométrie des pages ne distingue pas une page pivotée d'une page paysage d'origine.
+- Signets copiés à plat (sans hiérarchie), destinations explicites seulement (pas les destinations nommées).
+- Pages dupliquées : sans les champs de formulaire de l'original (un champ ne peut figurer qu'une fois par nom sans être lié).
+- Chaque opération relit et réécrit l'arbre des pages : quelques centaines de millisecondes sur un document lourd (scans de plusieurs dizaines de Mo).
+- Une extraction depuis un document chiffré produit un fichier non chiffré.
+- Volet de droite : les actions de la barre visent le volet utilisé en dernier ; Ctrl Z annule dans le document du volet qui a le focus.
 
 ## Phase 6 : enregistrement et export ⬜
 

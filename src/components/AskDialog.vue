@@ -14,8 +14,8 @@ const ask = computed(() => ui.ask!);
 const tab = computed(() => tabs.tabs.find((x) => x.key === ask.value.tabKey));
 const primary = ref<HTMLButtonElement>();
 const n = computed(() => tab.value?.edit?.unsavedCount ?? 1);
-const signed = computed(() => ask.value.kind === "signedAnnotate" || ask.value.kind === "signedFill");
-const verb = computed(() => (ask.value.kind === "signedFill" ? "Fill" : "Annotate"));
+const signed = computed(() => ask.value.kind.startsWith("signed"));
+const verb = computed(() => ask.value.kind.slice("signed".length));
 const signer = computed(() => {
   const names = [...new Set((tab.value?.signatures ?? []).map((s) => s.signer).filter(Boolean))] as string[];
   return names.length ? names.join(", ") : t("sig.unknownSigner");

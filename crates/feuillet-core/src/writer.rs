@@ -52,8 +52,26 @@ pub struct ImportedImage {
     pub height: u32,
 }
 
-pub struct Editor {
+/// État complet de l'éditeur avant une opération sur les pages (entrée d'annulation).
+pub struct Snapshot {
     base: Arc<Vec<u8>>,
+    annots: Vec<Annot>,
+    saved: Vec<Annot>,
+    fields: Vec<FormField>,
+    saved_fields: Vec<FormField>,
+    page_ops: u32,
+}
+
+pub struct Editor {
+    /// Octets de travail : fichier enregistré + révisions des opérations sur les pages.
+    base: Arc<Vec<u8>>,
+    /// Octets du fichier enregistré.
+    disk: Arc<Vec<u8>>,
+    password: Option<String>,
+    /// Opérations sur les pages depuis l'enregistrement.
+    page_ops: u32,
+    /// Incrémentée à chaque changement de structure (pages ajoutées, retirées, déplacées).
+    pub structure_rev: u32,
     doc: Document,
     pages: Vec<PageData>,
     saved: Vec<Annot>,
@@ -78,7 +96,11 @@ impl Editor {
         };
         let doc = Document::load_mem_with_options(&base, opts).map_err(|e| Error::Invalid(e.to_string()))?;
         let mut ed = Editor {
+            disk: base.clone(),
             base,
+            password: password.map(str::to_owned),
+            page_ops: 0,
+            structure_rev: 0,
             doc,
             pages: vec![],
             saved: vec![],
@@ -102,6 +124,154 @@ impl Editor {
         &self.base
     }
 
+    /// Octets du fichier enregistré (sans les modifications en cours).
+    pub fn disk(&self) -> &Arc<Vec<u8>> {
+        &self.disk
+    }
+
+    pub fn page_count(&self) -> usize {
+        self.pages.len()
+    }
+
+    fn snapshot(&self) -> Snapshot {
+        let mut annots = self.annots.clone();
+        for a in annots.iter_mut() {
+            a.hidden = false;
+        }
+        Snapshot {
+            base: self.base.clone(),
+            annots,
+            saved: self.saved.clone(),
+            fields: self.fields.clone(),
+            saved_fields: self.saved_fields.clone(),
+            page_ops: self.page_ops,
+        }
+    }
+
+    /// Repart d'octets de travail en gardant le fichier enregistré, l'historique et les images.
+    fn reopen(&mut self, base: Arc<Vec<u8>>) -> Result<()> {
+        let mut fresh = Editor::open(base, self.password.as_deref(), self.author.clone())?;
+        fresh.disk = self.disk.clone();
+        fresh.page_ops = self.page_ops;
+        fresh.structure_rev = self.structure_rev + 1;
+        fresh.images = std::mem::take(&mut self.images);
+        fresh.history = std::mem::take(&mut self.history);
+        *self = fresh;
+        Ok(())
+    }
+
+    fn restore(&mut self, s: Snapshot) -> Result<()> {
+        self.reopen(s.base)?;
+        self.annots = s.annots;
+        self.saved = s.saved;
+        self.fields = s.fields;
+        self.saved_fields = s.saved_fields;
+        self.page_ops = s.page_ops;
+        Ok(())
+    }
+
+    /// Restaure un état d'annulation ; l'état courant part dans l'autre pile.
+    fn swap_snapshot(&mut self, s: Snapshot, redo: bool) -> Vec<u32> {
+        let cur = self.snapshot();
+        let before = self.pages.len();
+        if let Err(e) = self.restore(s) {
+            eprintln!("[feuillet] annulation impossible : {e}");
+            return vec![];
+        }
+        let entry = crate::annot::Entry::Snapshot(Box::new(cur));
+        if redo {
+            self.history.undo.push(entry);
+        } else {
+            self.history.redo.push(entry);
+        }
+        (0..before.max(self.pages.len()) as u32).collect()
+    }
+
+    /// Opération sur les pages : nouvelle révision de l'arbre des pages, un pas d'annulation.
+    /// `src` : document source d'une copie (`PageOp::Import`).
+    pub fn apply_pages(&mut self, op: &crate::pages::PageOp, src: Option<&Document>) -> Result<Vec<u32>> {
+        use crate::pages::{PageEdit, PageOp, reorder};
+        let snapshot = self.snapshot();
+        let cur = self.build(false)?;
+        let opts = lopdf::LoadOptions {
+            password: self.password.clone(),
+            ..Default::default()
+        };
+        let mut doc = Document::load_mem_with_options(&cur, opts).map_err(|e| Error::Invalid(e.to_string()))?;
+        let mut pe = PageEdit::new(&mut doc)?;
+        let order = pe.order();
+        let pick = |pages: &[u32]| -> Vec<usize> {
+            let mut v: Vec<usize> = pages.iter().map(|p| *p as usize).filter(|p| *p < order.len()).collect();
+            v.sort_unstable();
+            v.dedup();
+            v
+        };
+        let new_order = match op {
+            PageOp::Move { pages, to } => Some(reorder(&order, pages, *to)),
+            PageOp::Rotate { pages, delta } => {
+                for i in pick(pages) {
+                    pe.rotate(order[i], *delta)?;
+                }
+                None
+            }
+            PageOp::Delete { pages } => {
+                let del = pick(pages);
+                if del.len() >= order.len() {
+                    return Err(Error::Invalid("un document doit garder au moins une page".into()));
+                }
+                Some(
+                    order
+                        .iter()
+                        .enumerate()
+                        .filter(|(i, _)| !del.contains(i))
+                        .map(|(_, p)| *p)
+                        .collect(),
+                )
+            }
+            PageOp::Duplicate { pages } => {
+                let mut o = order.clone();
+                for i in pick(pages).into_iter().rev() {
+                    let copy = pe.duplicate(order[i])?;
+                    o.insert(i + 1, copy);
+                }
+                Some(o)
+            }
+            PageOp::InsertBlank { at } => {
+                let at = (*at as usize).min(order.len());
+                let reference = order.get(at.saturating_sub(1)).or(order.first()).copied();
+                let blank = pe.blank_like(reference)?;
+                let mut o = order.clone();
+                o.insert(at, blank);
+                Some(o)
+            }
+            PageOp::Import { pages, at, .. } => {
+                let src = src.ok_or_else(|| Error::Invalid("document source absent".into()))?;
+                let src_order: Vec<ObjectId> = src.get_pages().into_values().collect();
+                let ids: Vec<ObjectId> = pages.iter().filter_map(|p| src_order.get(*p as usize).copied()).collect();
+                let new = pe.import(src, &ids)?;
+                let mut o = order.clone();
+                let at = (*at as usize).min(o.len());
+                o.splice(at..at, new);
+                Some(o)
+            }
+        };
+        if let Some(o) = &new_order {
+            pe.set_order(o)?;
+        }
+        let changed = std::mem::take(&mut pe.changed);
+        let objects: Vec<(ObjectId, Object)> = changed
+            .iter()
+            .filter_map(|id| doc.objects.get(id).map(|o| (*id, o.clone())))
+            .collect();
+        let next = doc.max_id + 1;
+        let bytes = serialize_increment(&cur, &doc, objects, next)?;
+        let before = self.pages.len();
+        self.reopen(Arc::new(bytes))?;
+        self.page_ops += 1;
+        self.history.push_snapshot(snapshot);
+        Ok((0..before.max(self.pages.len()) as u32).collect())
+    }
+
     pub fn page_transform(&self, page: u32) -> Option<Affine> {
         self.pages.get(page as usize).map(|p| p.to_display)
     }
@@ -117,6 +287,7 @@ impl Editor {
             pending_redactions: self.annots.iter().any(|a| matches!(a.body, AnnotBody::Redact { .. })),
             unsaved_count: self.unsaved_count(),
             author: self.author.clone(),
+            pages: None,
         }
     }
 
@@ -143,11 +314,12 @@ impl Editor {
             .zip(&self.saved_fields)
             .filter(|(a, b)| a.value != b.value)
             .count();
-        (changed + removed + fields) as u32
+        (changed + removed + fields) as u32 + self.page_ops
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.fields != self.saved_fields
+        !Arc::ptr_eq(&self.base, &self.disk)
+            || self.fields != self.saved_fields
             || self.annots.len() != self.saved.len()
             || self.annots.iter().zip(&self.saved).any(|(a, b)| {
                 let mut a = a.clone();
@@ -210,10 +382,16 @@ impl Editor {
         out
     }
     pub fn undo(&mut self) -> Vec<u32> {
-        self.history.undo(&mut self.annots, &mut self.fields)
+        match self.history.undo(&mut self.annots, &mut self.fields) {
+            Ok(pages) => pages,
+            Err(s) => self.swap_snapshot(*s, false),
+        }
     }
     pub fn redo(&mut self) -> Vec<u32> {
-        self.history.redo(&mut self.annots, &mut self.fields)
+        match self.history.redo(&mut self.annots, &mut self.fields) {
+            Ok(pages) => pages,
+            Err(s) => self.swap_snapshot(*s, true),
+        }
     }
 
     /// Masque une annotation le temps d'une édition en place (hors historique).
@@ -648,83 +826,8 @@ impl Editor {
         Ok(d)
     }
 
-    fn serialize(&self, mut objects: Vec<(ObjectId, Object)>, mut next: u32) -> Result<Vec<u8>> {
-        if let Some(state) = &self.doc.encryption_state {
-            for (id, obj) in objects.iter_mut() {
-                lopdf::encryption::encrypt_object(state, *id, obj).map_err(|e| Error::Engine(format!("chiffrement : {e:?}")))?;
-            }
-        }
-        objects.sort_by_key(|(id, _)| *id);
-        let mut out = Vec::with_capacity(self.base.len() + 8192);
-        out.extend_from_slice(&self.base);
-        if !out.ends_with(b"\n") {
-            out.push(b'\n');
-        }
-        let mut offsets: Vec<(u32, u16, usize)> = vec![];
-        for (id, obj) in &objects {
-            offsets.push((id.0, id.1, write_indirect(&mut out, *id, obj)));
-        }
-
-        let mut trailer = Dictionary::new();
-        for key in [&b"Root"[..], b"Info", b"ID", b"Encrypt"] {
-            if let Ok(v) = self.doc.trailer.get(key) {
-                trailer.set(key.to_vec(), v.clone());
-            }
-        }
-        // lopdf retire /Encrypt du trailer après déchiffrement : on le rétablit.
-        if let Some(state) = &self.doc.encryption_state
-            && !trailer.has(b"Encrypt")
-            && let Some(eid) = state.encrypt_object_id()
-        {
-            trailer.set("Encrypt", eid);
-        }
-        trailer.set("Prev", self.doc.xref_start as i64);
-        let xref_stream = matches!(self.doc.reference_table.cross_reference_type, XrefType::CrossReferenceStream);
-        let xref_id = if xref_stream {
-            let id = next;
-            next += 1;
-            Some(id)
-        } else {
-            None
-        };
-        let size = next.max(self.doc.reference_table.size).max(self.doc.max_id + 1);
-        trailer.set("Size", size as i64);
-
-        let start = out.len();
-        if let Some(xid) = xref_id {
-            offsets.push((xid, 0, start));
-            offsets.sort_by_key(|o| o.0);
-            let mut data = vec![];
-            let mut index = vec![];
-            for group in contiguous(&offsets) {
-                index.push(Object::Integer(group[0].0 as i64));
-                index.push(Object::Integer(group.len() as i64));
-                for (_, generation, off) in group {
-                    data.push(1u8);
-                    data.extend_from_slice(&(*off as u32).to_be_bytes());
-                    data.extend_from_slice(&generation.to_be_bytes());
-                }
-            }
-            trailer.set("Type", "XRef");
-            trailer.set("W", vec![1.into(), 4.into(), 2.into()]);
-            trailer.set("Index", index);
-            let mut s = Stream::new(trailer, data);
-            let _ = s.compress();
-            write_indirect(&mut out, (xid, 0), &Object::Stream(s));
-        } else {
-            out.extend_from_slice(b"xref\n");
-            for group in contiguous(&offsets) {
-                let _ = writeln!(out, "{} {}", group[0].0, group.len());
-                for (_, generation, off) in group {
-                    let _ = write!(out, "{off:010} {generation:05} n\r\n");
-                }
-            }
-            out.extend_from_slice(b"trailer\n");
-            write_object(&mut out, &Object::Dictionary(trailer));
-            out.push(b'\n');
-        }
-        let _ = write!(out, "startxref\n{start}\n%%EOF\n");
-        Ok(out)
+    fn serialize(&self, objects: Vec<(ObjectId, Object)>, next: u32) -> Result<Vec<u8>> {
+        serialize_increment(&self.base, &self.doc, objects, next)
     }
 
     /// Repart d'octets enregistrés (après « Enregistrer ») : le modèle devient l'état de référence.
@@ -735,6 +838,90 @@ impl Editor {
         *self = fresh;
         Ok(())
     }
+}
+
+/// Ajoute à `base` une révision incrémentale contenant `objects` (chiffrés si `doc` l'est).
+pub fn serialize_increment(base: &[u8], doc: &Document, mut objects: Vec<(ObjectId, Object)>, mut next: u32) -> Result<Vec<u8>> {
+    // Rien à écrire : pas de révision (une section xref vide serait invalide).
+    if objects.is_empty() {
+        return Ok(base.to_vec());
+    }
+    if let Some(state) = &doc.encryption_state {
+        for (id, obj) in objects.iter_mut() {
+            lopdf::encryption::encrypt_object(state, *id, obj).map_err(|e| Error::Engine(format!("chiffrement : {e:?}")))?;
+        }
+    }
+    objects.sort_by_key(|(id, _)| *id);
+    let mut out = Vec::with_capacity(base.len() + 8192);
+    out.extend_from_slice(base);
+    if !out.ends_with(b"\n") {
+        out.push(b'\n');
+    }
+    let mut offsets: Vec<(u32, u16, usize)> = vec![];
+    for (id, obj) in &objects {
+        offsets.push((id.0, id.1, write_indirect(&mut out, *id, obj)));
+    }
+
+    let mut trailer = Dictionary::new();
+    for key in [&b"Root"[..], b"Info", b"ID", b"Encrypt"] {
+        if let Ok(v) = doc.trailer.get(key) {
+            trailer.set(key.to_vec(), v.clone());
+        }
+    }
+    // lopdf retire /Encrypt du trailer après déchiffrement : on le rétablit.
+    if let Some(state) = &doc.encryption_state
+        && !trailer.has(b"Encrypt")
+        && let Some(eid) = state.encrypt_object_id()
+    {
+        trailer.set("Encrypt", eid);
+    }
+    trailer.set("Prev", doc.xref_start as i64);
+    let xref_stream = matches!(doc.reference_table.cross_reference_type, XrefType::CrossReferenceStream);
+    let xref_id = if xref_stream {
+        let id = next;
+        next += 1;
+        Some(id)
+    } else {
+        None
+    };
+    let size = next.max(doc.reference_table.size).max(doc.max_id + 1);
+    trailer.set("Size", size as i64);
+
+    let start = out.len();
+    if let Some(xid) = xref_id {
+        offsets.push((xid, 0, start));
+        offsets.sort_by_key(|o| o.0);
+        let mut data = vec![];
+        let mut index = vec![];
+        for group in contiguous(&offsets) {
+            index.push(Object::Integer(group[0].0 as i64));
+            index.push(Object::Integer(group.len() as i64));
+            for (_, generation, off) in group {
+                data.push(1u8);
+                data.extend_from_slice(&(*off as u32).to_be_bytes());
+                data.extend_from_slice(&generation.to_be_bytes());
+            }
+        }
+        trailer.set("Type", "XRef");
+        trailer.set("W", vec![1.into(), 4.into(), 2.into()]);
+        trailer.set("Index", index);
+        let mut s = Stream::new(trailer, data);
+        let _ = s.compress();
+        write_indirect(&mut out, (xid, 0), &Object::Stream(s));
+    } else {
+        out.extend_from_slice(b"xref\n");
+        for group in contiguous(&offsets) {
+            let _ = writeln!(out, "{} {}", group[0].0, group.len());
+            for (_, generation, off) in group {
+                let _ = write!(out, "{off:010} {generation:05} n\r\n");
+            }
+        }
+        out.extend_from_slice(b"trailer\n");
+        write_object(&mut out, &Object::Dictionary(trailer));
+        out.push(b'\n');
+    }
+    let _ = write!(out, "startxref\n{start}\n%%EOF\n");
+    Ok(out)
 }
 
 fn contiguous(offsets: &[(u32, u16, usize)]) -> Vec<&[(u32, u16, usize)]> {

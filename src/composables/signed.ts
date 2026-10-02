@@ -8,7 +8,7 @@ import { copyPath, saveTab } from "./save";
 const acknowledged = new WeakSet<DocTab>();
 
 /** Vrai si l'on peut modifier ce document (éventuellement devenu une copie). */
-export async function guardSigned(tab: DocTab, action: "annotate" | "fill"): Promise<boolean> {
+export async function guardSigned(tab: DocTab, action: "annotate" | "fill" | "organize"): Promise<boolean> {
   if (!tab.signatures?.length || acknowledged.has(tab)) return true;
   const settings = useSettings();
   if (settings.settings.signedOk.includes(tab.path)) {
@@ -16,7 +16,8 @@ export async function guardSigned(tab: DocTab, action: "annotate" | "fill"): Pro
     return true;
   }
   const ui = useUi();
-  const answer = await ui.askUser(action === "annotate" ? "signedAnnotate" : "signedFill", tab.key);
+  const kind = action === "annotate" ? "signedAnnotate" : action === "fill" ? "signedFill" : "signedOrganize";
+  const answer = await ui.askUser(kind, tab.key);
   if (answer === "cancel") return false;
   if (ui.askRemember) void settings.update({ signedOk: [...settings.settings.signedOk, tab.path] });
   if (answer === "copy" && !(await saveTab(tab, true, copyPath(tab.path)))) return false;

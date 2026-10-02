@@ -17,13 +17,27 @@ export const commands = {
 	setRenderEpoch: (doc: number, epoch: number) => __TAURI_INVOKE<void>("set_render_epoch", { doc, epoch }),
 	getOutline: (doc: number) => typedError<OutlineItem[], PdfError>(__TAURI_INVOKE("get_outline", { doc })),
 	/**  Modèle d'annotations du document (chargé à la demande). */
-	loadAnnotations: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("load_annotations", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
+	loadAnnotations: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("load_annotations", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.data.pages==null?v.data.pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
 	/**  Applique des opérations (ajout, modification, suppression) en une seule étape d'annulation. */
-	applyAnnotations: (doc: number, ops: AnnotOp[]) => typedError<EditState, PdfError>(__TAURI_INVOKE("apply_annotations", { doc, ops })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
-	undo: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("undo", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
-	redo: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("redo", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
+	applyAnnotations: (doc: number, ops: AnnotOp[]) => typedError<EditState, PdfError>(__TAURI_INVOKE("apply_annotations", { doc, ops })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.data.pages==null?v.data.pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
+	/**
+	 *  Opération sur les pages (déplacement, rotation, suppression, duplication, page blanche,
+	 *  copie depuis un autre document), en une étape d'annulation.
+	 */
+	applyPages: (doc: number, op: PageOp) => typedError<EditState, PdfError>(__TAURI_INVOKE("apply_pages", { doc, op })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.data.pages==null?v.data.pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
+	/**  Enregistre les pages choisies dans un nouveau PDF. */
+	extractPages: (doc: number, pages: number[], path: string) => typedError<null, PdfError>(__TAURI_INVOKE("extract_pages", { doc, pages, path })),
+	/**  Copie figée de pages (presse-papiers de pages) : document en mémoire à coller ailleurs. */
+	clipPages: (doc: number, pages: number[]) => typedError<DocInfo, PdfError>(__TAURI_INVOKE("clip_pages", { doc, pages })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
+	/**
+	 *  Ouvre un PDF comme source de pages (fichier déposé sur les miniatures), sans l'ajouter aux
+	 *  documents récents. À fermer avec `close_document`.
+	 */
+	openPageSource: (path: string) => typedError<DocInfo, PdfError>(__TAURI_INVOKE("open_page_source", { path })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
+	undo: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("undo", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.data.pages==null?v.data.pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
+	redo: (doc: number) => typedError<EditState, PdfError>(__TAURI_INVOKE("redo", { doc })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.data.pages==null?v.data.pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
 	/**  Masque une annotation pendant son édition en place (hors historique). */
-	setAnnotationHidden: (doc: number, id: string, hidden: boolean) => typedError<EditState, PdfError>(__TAURI_INVOKE("set_annotation_hidden", { doc, id, hidden })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})}))}) } : v) as typeof v)),
+	setAnnotationHidden: (doc: number, id: string, hidden: boolean) => typedError<EditState, PdfError>(__TAURI_INVOKE("set_annotation_hidden", { doc, id, hidden })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,annots:v.data.annots.map(i=>i),fields:v.data.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.data.pages==null?v.data.pages:v.data.pages.map(i=>i)}) } : v) as typeof v)),
 	/**  Boîtes des lignes de texte entre deux points (outils de marquage). */
 	textRange: (doc: number, page: number, from: Point, to: Point) => typedError<TextSelection, PdfError>(__TAURI_INVOKE("text_range", { doc, page, from, to })).then((v) => ((v.status === "ok" ? { ...v, data: ({...v.data,rects:v.data.rects.map(i=>i)}) } : v) as typeof v)),
 	importImage: (doc: number, path: string) => typedError<ImageInfo, PdfError>(__TAURI_INVOKE("import_image", { doc, path })),
@@ -183,6 +197,8 @@ export type EditState = {
 	unsavedCount: number,
 	/**  Auteur des nouvelles annotations (« Vous » dans la liste). */
 	author: string,
+	/**  Nouvelle géométrie des pages quand leur nombre, leur ordre ou leur rotation a changé. */
+	pages: PageGeom[] | null,
 };
 
 /**  Mise en forme d'un champ texte (actions `/F` et `/K`). */
@@ -292,6 +308,19 @@ export type PageGeom = {
 	/**  Libellé de page (`/PageLabels`), ex. « iv ». */
 	label: string | null,
 };
+
+/**  Opération sur les pages (indices de pages dans l'ordre courant, à partir de 0). */
+export type PageOp = 
+/**  Déplace les pages avant la page d'indice `to` (`to` = nombre de pages : à la fin). */
+{ op: "move"; pages: number[]; to: number } | 
+/**  Rotation de ±90° (multiple de 90). */
+{ op: "rotate"; pages: number[]; delta: number } | { op: "delete"; pages: number[] } | 
+/**  Chaque copie suit sa page d'origine. */
+{ op: "duplicate"; pages: number[] } | 
+/**  Page blanche au format de la page précédente, insérée à l'indice `at`. */
+{ op: "insertBlank"; at: number } | 
+/**  Copie de pages d'un autre document (ou du même) à l'indice `at`. */
+{ op: "import"; from: number; pages: number[]; at: number };
 
 export type PageText = {
 	runs: TextRun[],

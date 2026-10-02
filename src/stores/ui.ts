@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-export type AskKind = "unsaved" | "redact" | "signedAnnotate" | "signedFill";
+export type AskKind = "unsaved" | "redact" | "signedAnnotate" | "signedFill" | "signedOrganize";
 export type AskAnswer = "save" | "discard" | "cancel" | "confirm" | "copy";
 
 /** État d'interface global : dialogues et messages éphémères. */

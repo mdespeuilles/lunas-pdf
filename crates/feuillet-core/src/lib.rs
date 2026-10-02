@@ -10,6 +10,7 @@ pub mod form;
 pub mod form_script;
 pub mod fsutil;
 pub mod geom;
+pub mod pages;
 pub mod pdfwrite;
 pub mod redact;
 pub mod signature;

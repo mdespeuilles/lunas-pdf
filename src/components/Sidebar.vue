@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Barre latérale (planches 02 et 09) : miniatures, sommaire et signets, annotations, résultats.
-import { ArrowUpRight, Check as CheckIcon, Circle, EyeOff, Highlighter, Image as ImageIcon, MessageSquare, List, Minus, Rows2, Square, Strikethrough, Type, Underline, X } from "lucide-vue-next";
+import { ArrowUpRight, Check as CheckIcon, Circle, EyeOff, Highlighter, Image as ImageIcon, MessageSquare, List, Minus, RotateCcw, RotateCw, Rows2, Square, Strikethrough, Type, Underline, X } from "lucide-vue-next";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ThumbCanvas from "./ThumbCanvas.vue";
@@ -8,11 +8,15 @@ import OutlineNode from "./OutlineNode.vue";
 import { type DocTab, type SidebarTab, useTabs } from "../stores/tabs";
 import type { Annot, SearchHit } from "../bindings";
 import { kindKey, pdfDateTime } from "../lib/annot-geom";
+import { useOrganize } from "../composables/organize";
+import { fileDrop, pageDrag, usePageDrag } from "../composables/page-drag";
 
 const props = defineProps<{ tab: DocTab }>();
 const { t, locale } = useI18n();
 const tabs = useTabs();
 const info = computed(() => props.tab.info!);
+const org = useOrganize();
+const drag = usePageDrag();
 
 function select(which: SidebarTab) {
   props.tab.sidebarTab = which;
@@ -67,6 +71,17 @@ watch(
     }
   },
 );
+
+/** Repère d'insertion (glisser de pages ou de fichiers) : ordonnée dans la liste. */
+const markerY = computed(() => {
+  const target = pageDrag.value?.target ?? fileDrop.value;
+  if (!target || target.tab.key !== props.tab.key) return null;
+  const it = items.value[target.at];
+  if (it) return it.y - ITEM_GAP / 2 - 1;
+  const last = items.value.at(-1);
+  return last ? last.y + last.h + LABEL_H + ITEM_GAP / 2 - 1 : 8;
+});
+const dragged = computed(() => (pageDrag.value?.src.key === props.tab.key ? pageDrag.value.pages[0] : -1));
 
 function pageLabel(i: number) {
   return info.value.pages[i].label ?? String(i + 1);
@@ -167,20 +182,24 @@ function closeResults() {
           <span class="count">{{ t("sidebar.pageCount", { n: info.pages.length }, info.pages.length) }}</span>
         </div>
         <div ref="scroller" class="scroll" @scroll.passive="onScroll" @vue:mounted="onScroll">
-          <div class="thumbs" :style="{ height: totalH + 'px' }">
-            <button
-              v-for="it in visibleThumbs"
-              :key="it.i"
-              class="th-i"
-              :class="{ on: it.i === tab.page }"
-              :style="{ top: it.y + 'px' }"
-              :aria-label="t('sidebar.page', { n: pageLabel(it.i) })"
-              :aria-current="it.i === tab.page ? 'page' : undefined"
-              @click="tabs.goto(tab, it.i)"
-            >
-              <span class="thp"><ThumbCanvas :doc="info.id" :page="it.i" :width="THUMB_W" :height="it.h" :rev="tab.pageRev[it.i] ?? 0" /></span>
-              <span class="num">{{ pageLabel(it.i) }}</span>
-            </button>
+          <div class="thumbs" :data-thumbs="tab.key" :style="{ height: totalH + 'px' }">
+            <div v-for="it in visibleThumbs" :key="it.i" class="th-i" :class="{ on: it.i === tab.page, gone: it.i === dragged }" :style="{ top: it.y + 'px' }" :data-index="it.i">
+              <button
+                class="th-b"
+                :aria-label="t('sidebar.page', { n: pageLabel(it.i) })"
+                :aria-current="it.i === tab.page ? 'page' : undefined"
+                @pointerdown="drag.press(tab, it.i, $event)"
+                @click="tabs.goto(tab, it.i)"
+              >
+                <span class="thp"><ThumbCanvas :doc="info.id" :page="it.i" :width="THUMB_W" :height="it.h" :rev="tab.pageRev[it.i] ?? 0" /></span>
+                <span class="num">{{ pageLabel(it.i) }}</span>
+              </button>
+              <span class="rot" :style="{ width: THUMB_W + 'px' }">
+                <button class="rb" :aria-label="t('sidebar.rotateLeft', { n: pageLabel(it.i) })" :title="t('sidebar.rotateLeft', { n: pageLabel(it.i) })" @click="org.rotatePages(tab, [it.i], -90)"><RotateCcw class="ic xs" aria-hidden="true" /></button>
+                <button class="rb" :aria-label="t('sidebar.rotateRight', { n: pageLabel(it.i) })" :title="t('sidebar.rotateRight', { n: pageLabel(it.i) })" @click="org.rotatePages(tab, [it.i], 90)"><RotateCw class="ic xs" aria-hidden="true" /></button>
+              </span>
+            </div>
+            <span v-if="markerY !== null" class="drop-line" :style="{ top: markerY + 'px' }" aria-hidden="true" />
           </div>
         </div>
       </template>
@@ -234,12 +253,23 @@ function closeResults() {
 .empty { margin: 8px 14px; color: var(--text-3); font-size: 12px; }
 
 .thumbs { position: relative; }
-.th-i { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-2); font-variant-numeric: tabular-nums; border: 0; background: transparent; padding: 0; }
+.th-i { position: absolute; left: 0; right: 0; display: flex; justify-content: center; }
+.th-b { display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-2); font-variant-numeric: tabular-nums; border: 0; background: transparent; padding: 0; cursor: grab; }
+.th-i.gone .thp { opacity: .35; }
+.rot { position: absolute; top: 4px; display: flex; justify-content: space-between; padding: 0 4px; box-sizing: border-box; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.th-i:hover .rot, .th-i:focus-within .rot { opacity: 1; pointer-events: auto; }
+.rb { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; border: 0; padding: 0; background: rgba(25, 25, 30, .78); color: #fff; }
+.rb:hover { background: var(--accent); }
+.rb:focus-visible { box-shadow: var(--ring); }
+.drop-line { position: absolute; left: 30px; right: 30px; height: 3px; border-radius: 2px; background: var(--accent); z-index: 2; pointer-events: none; }
+.drop-line::before, .drop-line::after { content: ""; position: absolute; top: -3.5px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.drop-line::before { left: -5px; }
+.drop-line::after { right: -5px; }
 .thp { display: block; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .10); background: #fff; }
-.th-i:hover .thp { box-shadow: 0 0 0 1px var(--line-2), 0 2px 6px rgba(0, 0, 0, .14); }
+.th-b:hover .thp { box-shadow: 0 0 0 1px var(--line-2), 0 2px 6px rgba(0, 0, 0, .14); }
 .th-i.on .thp { box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px var(--accent-soft); }
-.th-i:focus-visible { box-shadow: none; }
-.th-i:focus-visible .thp { box-shadow: 0 0 0 2px var(--accent), var(--ring); }
+.th-b:focus-visible { box-shadow: none; }
+.th-b:focus-visible .thp { box-shadow: 0 0 0 2px var(--accent), var(--ring); }
 .th-i .num { padding: 1px 7px; border-radius: 9px; }
 .th-i.on .num { background: var(--accent); color: var(--on-accent); }
 

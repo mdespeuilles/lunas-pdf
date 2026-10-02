@@ -60,17 +60,25 @@ export async function openUrl(url: string) {
   }
 }
 
-export type DropEvent = { type: "enter" | "over"; paths?: string[] } | { type: "drop"; paths: string[] } | { type: "leave" };
+/** Position du pointeur en px CSS (la webview donne des px physiques). */
+export type DropEvent =
+  | { type: "enter" | "over"; paths?: string[]; x: number; y: number }
+  | { type: "drop"; paths: string[]; x: number; y: number }
+  | { type: "leave" };
 
 /** Glisser-déposer de fichiers n'importe où dans la fenêtre. */
 export async function onFileDrop(cb: (e: DropEvent) => void) {
+  const e2e = (window as unknown as { __FEUILLET_E2E__?: Record<string, unknown> }).__FEUILLET_E2E__;
+  if (e2e) e2e.emitFileDrop = cb;
   if (!inTauri) return;
   const { getCurrentWebview } = await import("@tauri-apps/api/webview");
   await getCurrentWebview().onDragDropEvent((ev) => {
     const p = ev.payload;
-    if (p.type === "enter") cb({ type: "enter", paths: p.paths });
-    else if (p.type === "over") cb({ type: "over" });
-    else if (p.type === "drop") cb({ type: "drop", paths: p.paths });
+    const k = window.devicePixelRatio || 1;
+    const at = "position" in p ? { x: p.position.x / k, y: p.position.y / k } : { x: 0, y: 0 };
+    if (p.type === "enter") cb({ type: "enter", paths: p.paths, ...at });
+    else if (p.type === "over") cb({ type: "over", ...at });
+    else if (p.type === "drop") cb({ type: "drop", paths: p.paths, ...at });
     else cb({ type: "leave" });
   });
 }

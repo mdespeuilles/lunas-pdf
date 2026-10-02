@@ -169,6 +169,39 @@ pub async fn apply_annotations(engine: State<'_, Engine>, doc: DocId, ops: Vec<A
     edit(&engine, doc, EditRequest::Apply(ops)).await
 }
 
+/// Opération sur les pages (déplacement, rotation, suppression, duplication, page blanche,
+/// copie depuis un autre document), en une étape d'annulation.
+#[tauri::command]
+#[specta::specta]
+pub async fn apply_pages(engine: State<'_, Engine>, doc: DocId, op: feuillet_core::pages::PageOp) -> Result<EditState> {
+    edit(&engine, doc, EditRequest::Pages(op)).await
+}
+
+/// Ouvre un PDF comme source de pages (fichier déposé sur les miniatures), sans l'ajouter aux
+/// documents récents. À fermer avec `close_document`.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_page_source(engine: State<'_, Engine>, path: String) -> Result<DocInfo> {
+    let e = engine.inner().clone();
+    blocking(move || e.open(&path, None)).await
+}
+
+/// Copie figée de pages (presse-papiers de pages) : document en mémoire à coller ailleurs.
+#[tauri::command]
+#[specta::specta]
+pub async fn clip_pages(engine: State<'_, Engine>, doc: DocId, pages: Vec<u32>) -> Result<DocInfo> {
+    let e = engine.inner().clone();
+    blocking(move || e.clip_pages(doc, pages)).await
+}
+
+/// Enregistre les pages choisies dans un nouveau PDF.
+#[tauri::command]
+#[specta::specta]
+pub async fn extract_pages(engine: State<'_, Engine>, doc: DocId, pages: Vec<u32>, path: String) -> Result<()> {
+    let e = engine.inner().clone();
+    blocking(move || e.extract_pages(doc, pages, path)).await
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn undo(engine: State<'_, Engine>, doc: DocId) -> Result<EditState> {

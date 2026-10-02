@@ -138,7 +138,7 @@ defineExpose({
       >
         <PenLine class="ic" aria-hidden="true" />{{ t("toolbar.annotate") }}
       </button>
-      <button class="tb" disabled :aria-label="t('toolbar.organize')" :title="t('toolbar.comingSoon')">
+      <button class="tb" :disabled="disabled" :aria-label="t('toolbar.organize')" :title="t('toolbar.organize')" @click="tabs.toggleOrganizing(tab, true)">
         <LayoutGrid class="ic" aria-hidden="true" />
       </button>
       <button class="tb" disabled :aria-label="t('toolbar.share')" :title="t('toolbar.comingSoon')">

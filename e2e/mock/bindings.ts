@@ -1,7 +1,7 @@
 // Backend simulé pour les tests de parcours (vite --mode e2e) : remplace src/bindings.ts.
 // Mêmes signatures que les commandes générées par tauri-specta, données déterministes.
 import type {
-  Annot, AnnotOp, DocInfo, EditState, FormField, SavedSignature, SignatureInfo, TrustedRoot, ImageInfo, LinkInfo, OpenFilesEvent, OutlineItem, PageText, PdfError, Point, RecentDoc, Rect, SearchEvent, SearchHit,
+  Annot, AnnotOp, DocInfo, EditState, FormField, PageGeom, PageOp, SavedSignature, SignatureInfo, TrustedRoot, ImageInfo, LinkInfo, OpenFilesEvent, OutlineItem, PageText, PdfError, Point, RecentDoc, Rect, SearchEvent, SearchHit,
   Settings, TextRun, TextSelection,
 } from "../../src/bindings";
 
@@ -20,7 +20,11 @@ w.__TAURI_INTERNALS__ = {
   },
   unregisterCallback: (id: number) => callbacks.delete(id),
 };
-const e2e = w.__FEUILLET_E2E__ as { pending?: string[]; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]>; fields?: Record<string, FormField[]> };
+const e2e = w.__FEUILLET_E2E__ as {
+  pending?: string[]; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]>; fields?: Record<string, FormField[]>;
+  /** Pages de chaque document : origine (« 3 », « blanche », « formulaire.pdf:1 ») et rotation. */
+  pages?: Record<string, string[]>;
+};
 e2e.calls = [];
 
 // --- Documents simulés ---------------------------------------------------------------------------
@@ -93,13 +97,27 @@ const open = new Map<number, string>();
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
 // --- Modèle d'annotations simulé (même sémantique que l'écrivain Rust) ---------------------------
+/** Page du modèle simulé : origine et rotation. */
+interface PageEntry {
+  src: string;
+  rot: number;
+}
+interface Snap {
+  snap: true;
+  order: PageEntry[];
+  annots: Annot[];
+  fields: FormField[];
+}
 interface Ed {
+  order: PageEntry[];
+  /** Ordre enregistré (pour l'état « modifié »). */
+  savedOrder: string;
   annots: Annot[];
   saved: Annot[];
   fields: FormField[];
   savedFields: FormField[];
-  undo: AnnotOp[][];
-  redo: AnnotOp[][];
+  undo: (AnnotOp[] | Snap)[];
+  redo: (AnnotOp[] | Snap)[];
 }
 const editors = new Map<number, Ed>();
 function editor(doc: number): Ed {
@@ -112,7 +130,8 @@ function editor(doc: number): Ed {
     const form = DOCS[open.get(doc) ?? ""]?.form === "acroForm";
     const annots = form ? [] : initial;
     const fields = form ? formFields() : [];
-    ed = { annots: clone(annots), saved: clone(annots), fields: clone(fields), savedFields: clone(fields), undo: [], redo: [] };
+    const order = Array.from({ length: DOCS[open.get(doc) ?? ""]?.pages ?? 1 }, (_, i) => ({ src: String(i + 1), rot: 0 }));
+    ed = { order, savedOrder: JSON.stringify(order), annots: clone(annots), saved: clone(annots), fields: clone(fields), savedFields: clone(fields), undo: [], redo: [] };
     editors.set(doc, ed);
   }
   return ed;
@@ -147,22 +166,35 @@ function applyOps(ed: Ed, ops: AnnotOp[]): AnnotOp[] {
 function pagesOf(ops: AnnotOp[], ed: Ed): number[] {
   return [...new Set(ops.flatMap((o) => (o.op === "setField" ? (ed.fields.find((f) => f.id === o.id)?.widgets.map((w) => w.page) ?? []) : o.op === "remove" ? [ed.annots.find((a) => a.id === o.id)?.page ?? 0] : [o.annot.page])))];
 }
-function state(doc: number, changedPages: number[]): EditState {
+function geoms(ed: Ed): PageGeom[] {
+  return ed.order.map((p) => (p.rot % 180 ? { width: A4.height, height: A4.width, label: null } : { ...A4 }));
+}
+function snap(ed: Ed): Snap {
+  return { snap: true, order: clone(ed.order), annots: clone(ed.annots), fields: clone(ed.fields) };
+}
+function restore(ed: Ed, s: Snap) {
+  ed.order = s.order;
+  ed.annots = s.annots;
+  ed.fields = s.fields;
+}
+function state(doc: number, changedPages: number[], pagesChanged = false): EditState {
   const ed = editor(doc);
   const key = (a: Annot) => JSON.stringify({ ...a, hidden: false });
   const changedFields = ed.fields.filter((f, i) => JSON.stringify(f.value) !== JSON.stringify(ed.savedFields[i]?.value)).length;
   const unsaved = ed.annots.filter((a) => !ed.saved.some((s) => key(s) === key(a))).length + ed.saved.filter((s) => !ed.annots.some((a) => a.id === s.id)).length + changedFields;
   (e2e.saved ??= {})[open.get(doc) ?? ""] = ed.annots;
   (e2e.fields ??= {})[open.get(doc) ?? ""] = ed.fields;
+  (e2e.pages ??= {})[open.get(doc) ?? ""] = ed.order.map((p) => (p.rot ? `${p.src}@${p.rot}` : p.src));
   return {
+    pages: pagesChanged ? geoms(ed) : null,
     annots: clone(ed.annots),
     fields: clone(ed.fields),
     changedPages,
     canUndo: ed.undo.length > 0,
     canRedo: ed.redo.length > 0,
-    dirty: unsaved > 0,
+    dirty: unsaved > 0 || JSON.stringify(ed.order) !== ed.savedOrder,
     pendingRedactions: ed.annots.some((a) => a.body.type === "redact"),
-    unsavedCount: unsaved,
+    unsavedCount: unsaved + (JSON.stringify(ed.order) !== ed.savedOrder ? 1 : 0),
     author: "Moi",
   };
 }
@@ -248,6 +280,11 @@ export const commands = {
     const ed = editor(doc);
     const ops = ed.undo.pop();
     if (!ops) return ok(state(doc, []));
+    if ("snap" in ops) {
+      ed.redo.push(snap(ed));
+      restore(ed, ops);
+      return ok(state(doc, ed.order.map((_, i) => i), true));
+    }
     ed.redo.push(applyOps(ed, ops));
     return ok(state(doc, pagesOf(ops, ed)));
   },
@@ -255,8 +292,71 @@ export const commands = {
     const ed = editor(doc);
     const ops = ed.redo.pop();
     if (!ops) return ok(state(doc, []));
+    if ("snap" in ops) {
+      ed.undo.push(snap(ed));
+      restore(ed, ops);
+      return ok(state(doc, ed.order.map((_, i) => i), true));
+    }
     ed.undo.push(applyOps(ed, ops));
     return ok(state(doc, pagesOf(ops, ed)));
+  },
+  async applyPages(doc: number, op: PageOp): Res<EditState> {
+    const ed = editor(doc);
+    const before = snap(ed);
+    const ids = ed.order.map((p) => ({ ...p }));
+    const sel = (pages: number[]) => [...new Set(pages)].filter((i) => i < ids.length).sort((a, b) => a - b);
+    let next = ids.slice();
+    if (op.op === "move") {
+      const s = sel(op.pages);
+      const anchor = ids.find((_, i) => i >= op.to && !s.includes(i));
+      const moving = s.map((i) => ids[i]);
+      next = ids.filter((_, i) => !s.includes(i));
+      const at = anchor ? next.indexOf(anchor) : next.length;
+      next.splice(at, 0, ...moving);
+    } else if (op.op === "rotate") {
+      for (const i of sel(op.pages)) ids[i].rot = (((ids[i].rot + op.delta) % 360) + 360) % 360;
+    } else if (op.op === "delete") {
+      const s = sel(op.pages);
+      if (s.length >= ids.length) return err({ kind: "invalid", message: "un document doit garder au moins une page" });
+      next = ids.filter((_, i) => !s.includes(i));
+    } else if (op.op === "duplicate") {
+      for (const i of sel(op.pages).reverse()) next.splice(i + 1, 0, { ...ids[i] });
+    } else if (op.op === "insertBlank") {
+      next.splice(Math.min(op.at, next.length), 0, { src: "blanche", rot: 0 });
+    } else {
+      const src = editor(op.from);
+      const name = (open.get(op.from) ?? "").split("/").pop();
+      // Presse-papiers de pages : l'origine des pages copiées est conservée.
+      const label = (i: number) => (open.get(op.from)?.startsWith("/clip/") ? src.order[i]?.src : `${name}:${src.order[i]?.src}`);
+      next.splice(Math.min(op.at, next.length), 0, ...op.pages.map((i) => ({ src: label(i), rot: src.order[i]?.rot ?? 0 })));
+    }
+    // Annotations : suivent leur page (retirées avec elle).
+    ed.annots = ed.annots.flatMap((a) => {
+      const page = next.indexOf(ids[a.page]);
+      return page < 0 ? [] : [{ ...a, page }];
+    });
+    ed.order = next.map((p) => ({ ...p }));
+    ed.undo.push(before);
+    ed.redo = [];
+    e2e.calls!.push(`pages:${op.op}`);
+    return ok(state(doc, ed.order.map((_, i) => i), true));
+  },
+  async clipPages(doc: number, pages: number[]): Res<DocInfo> {
+    const src = editor(doc);
+    const id = nextId++;
+    const path = `/clip/${id}.pdf`;
+    open.set(id, path);
+    const order = pages.map((i) => ({ ...src.order[i] }));
+    editors.set(id, { order, savedOrder: JSON.stringify(order), annots: [], saved: [], fields: [], savedFields: [], undo: [], redo: [] });
+    e2e.calls!.push(`clip:${pages.join(",")}`);
+    return ok({ id, path, name: "pages.pdf", title: null, pages: pages.map(() => ({ ...A4 })), encrypted: false, form: "none", signatureCount: 0, canCopy: true, canPrint: true });
+  },
+  async openPageSource(path: string): Res<DocInfo> {
+    return commands.openDocument(path, null, false);
+  },
+  async extractPages(_doc: number, pages: number[], path: string): Res<null> {
+    e2e.calls!.push(`extract:${path}:${pages.join(",")}`);
+    return ok(null);
   },
   async setAnnotationHidden(doc: number, id: string, hidden: boolean): Res<EditState> {
     const a = editor(doc).annots.find((x) => x.id === id);
@@ -332,10 +432,11 @@ export const commands = {
     ed.annots = ed.annots.filter((a) => a.body.type !== "redact");
     ed.saved = clone(ed.annots);
     ed.savedFields = clone(ed.fields);
+    ed.savedOrder = JSON.stringify(ed.order);
     ed.undo = [];
     ed.redo = [];
     const p = path ?? open.get(doc)!;
-    return ok({ ...(await commands.openDocument(open.get(doc)!, "feuillet", false).then((r) => (r.status === "ok" ? r.data : null)))!, id: doc, path: p, name: p.split("/").pop()! });
+    return ok({ ...(await commands.openDocument(open.get(doc)!, "feuillet", false).then((r) => (r.status === "ok" ? r.data : null)))!, id: doc, path: p, name: p.split("/").pop()!, pages: geoms(ed) });
   },
   async getLinks(_doc: number, page: number): Res<LinkInfo[]> {
     return ok(page === 0 ? [{ rect: { x: 72, y: 700, w: 200, h: 14 }, target: { type: "page", page: 8 } }] : []);

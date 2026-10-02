@@ -81,6 +81,17 @@ enum Msg {
         page: u32,
         reply: Sender<Result<Vec<LinkInfo>>>,
     },
+    ClipPages {
+        doc: DocId,
+        pages: Vec<u32>,
+        reply: Sender<Result<DocInfo>>,
+    },
+    Extract {
+        doc: DocId,
+        pages: Vec<u32>,
+        path: PathBuf,
+        reply: Sender<Result<()>>,
+    },
     SavedBytes {
         doc: DocId,
         reply: Sender<Result<SavedFile>>,
@@ -117,6 +128,8 @@ pub enum EditRequest {
     /// Charge le modèle (annotations existantes) sans rien modifier.
     Load,
     Apply(Vec<AnnotOp>),
+    /// Opération sur les pages (un pas d'annulation).
+    Pages(crate::pages::PageOp),
     Undo,
     Redo,
     SetHidden {
@@ -218,6 +231,16 @@ impl Engine {
     /// Nom d'auteur des nouvelles annotations (`/T`).
     pub fn set_author(&self, name: String) {
         let _ = self.tx.send(Msg::SetAuthor { name });
+    }
+    /// Copie figée des pages choisies, ouverte comme document en mémoire (presse-papiers de
+    /// pages ; le fermer avec `close` quand il est remplacé).
+    pub fn clip_pages(&self, doc: DocId, pages: Vec<u32>) -> Result<DocInfo> {
+        self.call(|reply| Msg::ClipPages { doc, pages, reply })
+    }
+    /// Enregistre les pages choisies (état courant) dans un nouveau PDF.
+    pub fn extract_pages(&self, doc: DocId, pages: Vec<u32>, path: impl Into<PathBuf>) -> Result<()> {
+        let path = path.into();
+        self.call(|reply| Msg::Extract { doc, pages, path, reply })
     }
     /// Octets enregistrés (sans la révision en cours d'édition) et mot de passe.
     pub fn saved_file(&self, doc: DocId) -> Result<SavedFile> {
@@ -409,10 +432,16 @@ impl Actor {
             Msg::SetAuthor { name } => {
                 self.author = name;
             }
+            Msg::ClipPages { doc, pages, reply } => {
+                let _ = reply.send(self.clip_pages(doc, pages));
+            }
+            Msg::Extract { doc, pages, path, reply } => {
+                let _ = reply.send(self.extract(doc, pages, path));
+            }
             Msg::SavedBytes { doc, reply } => {
                 let _ = reply.send(self.doc(doc).map(|d| {
                     // Octets enregistrés (sans la révision en cours d'édition).
-                    let bytes = d.editor.as_ref().map(|e| e.base().clone()).unwrap_or_else(|| d.bytes.clone());
+                    let bytes = d.editor.as_ref().map(|e| e.disk().clone()).unwrap_or_else(|| d.bytes.clone());
                     (bytes, d.password.clone())
                 }));
             }
@@ -475,27 +504,27 @@ impl Actor {
             return Err(Error::NotFound(path.display().to_string()));
         }
         let bytes = Arc::new(std::fs::read(path).map_err(|e| Error::NotFound(format!("{}: {e}", path.display())))?);
+        self.open_bytes(bytes, path, password)
+    }
+
+    /// Copie figée de pages (presse-papiers de pages) : document en mémoire, sans fichier.
+    fn clip_pages(&mut self, doc: DocId, pages: Vec<u32>) -> Result<DocInfo> {
+        let src = self.current_document(doc)?;
+        let order: Vec<lopdf::ObjectId> = src.get_pages().into_values().collect();
+        let ids: Vec<lopdf::ObjectId> = pages.iter().filter_map(|p| order.get(*p as usize).copied()).collect();
+        if ids.is_empty() {
+            return Err(Error::Invalid("aucune page".into()));
+        }
+        let bytes = crate::pages::extract(&src, &ids)?;
+        self.open_bytes(Arc::new(bytes), Path::new("pages.pdf"), None)
+    }
+
+    fn open_bytes(&mut self, bytes: Arc<Vec<u8>>, path: &Path, password: Option<&str>) -> Result<DocInfo> {
         let pdf = self.load(&bytes, password)?;
         let id = self.next_id;
         self.next_id += 1;
 
-        let pages = pdf.pages();
-        let mut geoms = Vec::with_capacity(pages.len() as usize);
-        for i in 0..pages.len() {
-            // Taille sans charger la page (rotation comprise).
-            let r = pages.page_size(i)?;
-            geoms.push(PageGeom {
-                width: r.width().value,
-                height: r.height().value,
-                label: None,
-            });
-        }
-        let labels_present = !pages.is_empty() && pages.get(0).ok().and_then(|p| p.label().map(str::to_owned)).is_some();
-        if labels_present {
-            for (i, g) in geoms.iter_mut().enumerate() {
-                g.label = pages.get(i as i32).ok().and_then(|p| p.label().map(str::to_owned));
-            }
-        }
+        let geoms = page_geoms(&pdf)?;
         let form = match pdf.form().map(|f| f.form_type()) {
             Some(PdfFormType::XfaFull | PdfFormType::XfaForeground) => FormKind::Xfa,
             Some(PdfFormType::Acrobat) => FormKind::AcroForm,
@@ -559,12 +588,41 @@ impl Actor {
         Ok(())
     }
 
+    /// Document lopdf d'un onglet dans son état courant (source d'une copie de pages).
+    fn current_document(&mut self, doc: DocId) -> Result<lopdf::Document> {
+        let d = self.editor(doc)?;
+        let bytes = d.editor.as_ref().unwrap().build(false)?;
+        let opts = lopdf::LoadOptions {
+            password: d.password.clone(),
+            ..Default::default()
+        };
+        lopdf::Document::load_mem_with_options(&bytes, opts).map_err(|e| Error::Invalid(e.to_string()))
+    }
+
+    /// Nouveau PDF des pages choisies, écrit à `path`.
+    fn extract(&mut self, doc: DocId, pages: Vec<u32>, path: PathBuf) -> Result<()> {
+        let src = self.current_document(doc)?;
+        let order: Vec<lopdf::ObjectId> = src.get_pages().into_values().collect();
+        let ids: Vec<lopdf::ObjectId> = pages.iter().filter_map(|p| order.get(*p as usize).copied()).collect();
+        if ids.is_empty() {
+            return Err(Error::Invalid("aucune page".into()));
+        }
+        let bytes = crate::pages::extract(&src, &ids)?;
+        crate::fsutil::write_atomic(&path, &bytes).map_err(|e| Error::Engine(format!("enregistrement : {e}")))
+    }
+
     fn edit(&mut self, doc: DocId, req: EditRequest) -> Result<EditState> {
+        let src = match &req {
+            EditRequest::Pages(crate::pages::PageOp::Import { from, .. }) => Some(self.current_document(*from)?),
+            _ => None,
+        };
         let d = self.editor(doc)?;
         let ed = d.editor.as_mut().unwrap();
+        let rev = ed.structure_rev;
         let changed = match req {
             EditRequest::Load => vec![],
             EditRequest::Apply(ops) => ed.apply(ops),
+            EditRequest::Pages(op) => ed.apply_pages(&op, src.as_ref())?,
             EditRequest::Undo => ed.undo(),
             EditRequest::Redo => ed.redo(),
             EditRequest::SetHidden { id, hidden } => ed.set_hidden(&id, hidden),
@@ -573,13 +631,25 @@ impl Actor {
             let bytes = ed.build(false)?;
             self.reload(doc, bytes)?;
         }
+        // Pages ajoutées, retirées, déplacées ou pivotées : nouvelle géométrie, textes à relire.
+        let mut pages = None;
+        let d = self.docs.get_mut(&doc).ok_or(Error::UnknownDocument)?;
+        if d.editor.as_ref().is_some_and(|e| e.structure_rev != rev) {
+            let g = page_geoms(&d.pdf)?;
+            d.info.pages = g.clone();
+            d.glyphs.clear();
+            d.glyph_order.clear();
+            pages = Some(g);
+        }
         self.fill_excerpts(doc);
         let ed = self
             .docs
             .get(&doc)
             .and_then(|d| d.editor.as_ref())
             .ok_or(Error::UnknownDocument)?;
-        Ok(ed.state(changed))
+        let mut st = ed.state(changed);
+        st.pages = pages;
+        Ok(st)
     }
 
     /// Texte recouvert par les annotations de marquage (pour la liste latérale).
@@ -920,4 +990,26 @@ fn links(pdf: &PdfDocument, page: u32) -> Result<Vec<LinkInfo>> {
         }
     }
     Ok(out)
+}
+
+/// Taille affichée (rotation comprise) et libellé de chaque page.
+fn page_geoms(pdf: &PdfDocument) -> Result<Vec<PageGeom>> {
+    let pages = pdf.pages();
+    let mut geoms = Vec::with_capacity(pages.len() as usize);
+    for i in 0..pages.len() {
+        // Taille sans charger la page.
+        let r = pages.page_size(i)?;
+        geoms.push(PageGeom {
+            width: r.width().value,
+            height: r.height().value,
+            label: None,
+        });
+    }
+    let labels_present = !pages.is_empty() && pages.get(0).ok().and_then(|p| p.label().map(str::to_owned)).is_some();
+    if labels_present {
+        for (i, g) in geoms.iter_mut().enumerate() {
+            g.label = pages.get(i as i32).ok().and_then(|p| p.label().map(str::to_owned));
+        }
+    }
+    Ok(geoms)
 }

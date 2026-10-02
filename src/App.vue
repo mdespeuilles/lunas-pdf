@@ -4,6 +4,9 @@ import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AboutDialog from "./components/AboutDialog.vue";
 import AskDialog from "./components/AskDialog.vue";
+import PageDragGhost from "./components/PageDragGhost.vue";
+import { fileDrop, thumbsTarget } from "./composables/page-drag";
+import { insertFiles } from "./composables/insert-files";
 import SignatureDialog from "./components/SignatureDialog.vue";
 import SignaturePicker from "./components/SignaturePicker.vue";
 import { useSignatures } from "./stores/signatures";
@@ -40,10 +43,17 @@ onMounted(async () => {
   bootLog("démarrage : fenêtre affichée par l'interface");
   await appWindow.onCloseRequested(confirmQuit);
   await onFileDrop((e) => {
+    // Au-dessus des miniatures : les pages des fichiers sont insérées à cet endroit.
+    const target = e.type === "leave" ? null : thumbsTarget(e.x, e.y);
     if (e.type === "drop") {
       dragging.value = false;
-      openPaths(e.paths);
-    } else dragging.value = e.type !== "leave";
+      fileDrop.value = null;
+      if (target) void insertFiles(target.tab, e.paths, target.at);
+      else openPaths(e.paths);
+    } else {
+      fileDrop.value = target;
+      dragging.value = e.type !== "leave" && !target;
+    }
   });
   if (inTauri || "__FEUILLET_E2E__" in window) {
     await events.openFilesEvent.listen((e) => openPaths(e.payload.paths));
@@ -78,6 +88,7 @@ tabs.$onAction(({ name, after }) => {
     <AboutDialog v-if="ui.aboutOpen" />
     <AskDialog v-if="ui.ask" />
     <SignaturePicker v-if="sigs.picker" />
+    <PageDragGhost />
     <SignatureDialog v-if="sigs.dialog" />
     <div v-if="ui.toast" :key="ui.toast.seq" class="toast" role="status">{{ ui.toast.text }}</div>
   </div>

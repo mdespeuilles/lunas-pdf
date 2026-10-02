@@ -54,9 +54,12 @@ Modules de `feuillet-core` :
 | `fonts.rs` | Largeurs AFM des polices standard 14 (WinAnsi) pour la mise en page des zones de texte |
 | `signature.rs` | Vérification des signatures numériques : plage `/ByteRange`, CMS détaché (empreinte, signature RSA / RSA-PSS / ECDSA), chaîne de certificats jusqu'au magasin du système, jeton d'horodatage RFC 3161. Lecture seule, sur les octets enregistrés, hors du fil du moteur |
 | `trust_lists.rs` | Listes de confiance : lecture de la liste des listes de l'UE et des listes nationales (autorités qualifiées, horodatage qualifié, périodes d'agrément), rapport CCADB des racines Microsoft ; instantané embarqué, téléchargement (fonctionnalité `trust-fetch`) |
+| `pages.rs` | Organisation des pages sur un document lopdf : arbre aplati (attributs hérités recopiés), rotation, duplication, page blanche, copie entre documents (objets renumérotés, champs fusionnés dans l'AcroForm, signets), extraction ; chaque opération devient une révision incrémentale |
 | `redact.rs` | Caviardage réel à l'enregistrement : réécriture des flux de contenu, des images et des formulaires ; réécriture complète du fichier |
 | `pdfwrite.rs` | Sérialisation d'objets PDF |
 | `fsutil.rs` | Écriture atomique |
+
+**Opérations sur les pages.** L'éditeur garde des octets de travail (fichier enregistré + révisions des opérations sur les pages) distincts du fichier enregistré. Une opération construit l'état courant (annotations comprises), y ajoute une révision de l'arbre des pages, puis recharge le modèle depuis ces octets. L'annulation conserve un instantané de l'état précédent (octets de travail, annotations, champs) : annotations, champs et pages partagent une seule pile. Quand la structure change, l'état renvoyé contient la nouvelle géométrie des pages et l'interface vide ses caches.
 
 **Cycle d'une modification.**
 1. L'UI envoie des opérations (`apply_annotations`), traitées en file par document.

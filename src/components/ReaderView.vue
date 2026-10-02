@@ -6,6 +6,7 @@ import { useI18n } from "vue-i18n";
 import AnnotBar from "./AnnotBar.vue";
 import DocViewport from "./DocViewport.vue";
 import FormBanner from "./FormBanner.vue";
+import OrganizeView from "./OrganizeView.vue";
 import SignatureBanner from "./SignatureBanner.vue";
 import SignaturePanel from "./SignaturePanel.vue";
 import Sidebar from "./Sidebar.vue";
@@ -36,7 +37,10 @@ defineExpose({
 </script>
 
 <template>
-  <section class="reader">
+  <section v-if="tab.organizing && tab.status === 'ready'" class="reader">
+    <OrganizeView :tab="tab" />
+  </section>
+  <section v-else class="reader">
     <Toolbar ref="toolbar" :tab="tab" :disabled="tab.status !== 'ready'" />
     <AnnotBar v-if="tab.annotating && tab.status === 'ready'" :tab="tab" />
     <SignatureBanner v-if="tab.status === 'ready' && tab.signatures?.length && !tab.sigBannerHidden" :tab="tab" />
