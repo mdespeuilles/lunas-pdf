@@ -8,22 +8,22 @@ Lecteur et éditeur PDF pour Linux, macOS et Windows : simple, rapide, beau. Tau
 
 ## Développement
 
-Prérequis : Rust stable, Node 24+, pnpm, et sous Linux les bibliothèques de WebKitGTK 4.1 (`webkit2gtk-4.1`).
+Prérequis : Rust stable, Bun 1.3+, Node 24+ (Vitest et Playwright), et sous Linux les bibliothèques de WebKitGTK 4.1 (`webkit2gtk-4.1`).
 
 ```sh
-pnpm install
-pnpm pdfium          # télécharge libpdfium (version épinglée) dans src-tauri/pdfium/
-pnpm tauri dev       # lance l'app ; `pnpm tauri dev -- -- fichier.pdf` pour ouvrir un fichier
+bun install
+bun pdfium           # télécharge libpdfium (version épinglée) dans src-tauri/pdfium/
+bun tauri dev        # lance l'app ; `bun tauri dev -- -- fichier.pdf` pour ouvrir un fichier
 ```
 
 Tests :
 
 ```sh
 cargo test --workspace                    # moteur + app (régénère src/bindings.ts)
-pnpm test                                  # unitaires (Vitest)
-pnpm test:e2e --project=chromium           # parcours UI (Playwright, backend simulé)
+bun run test                              # unitaires (Vitest)
+bun run test:e2e --project=chromium       # parcours UI (Playwright, backend simulé)
 ```
 
-Paquets : `pnpm tauri build --bundles appimage,deb,rpm` (ou `dmg`, `msi`).
+Paquets : `bun tauri build --bundles appimage,deb,rpm` (ou `dmg`, `msi`).
 
 Les PDF de test se régénèrent avec `fixtures/scripts/` (voir l'en-tête des scripts).

@@ -2,7 +2,7 @@
 // dans src-tauri/pdfium/. La version est épinglée sur celle de l'API liée par pdfium-render
 // (feature `pdfium_7881`) : voir docs/ADR-001-moteur-pdf.md.
 //
-// Usage : node scripts/fetch-pdfium.mjs [plateforme]   (ex. linux-x64, mac-arm64, win-x64)
+// Usage : bun scripts/fetch-pdfium.mjs [plateforme]   (ex. linux-x64, mac-arm64, win-x64)
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

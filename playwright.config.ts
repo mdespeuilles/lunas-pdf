@@ -12,5 +12,5 @@ export default defineConfig({
     { name: "webkit", use: { ...devices["Desktop Safari"], viewport: { width: 1280, height: 820 } } },
     { name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 820 } } },
   ],
-  webServer: { command: "pnpm exec vite --mode e2e --port 1421 --strictPort", port: 1421, reuseExistingServer: !process.env.CI },
+  webServer: { command: "bunx vite --mode e2e --port 1421 --strictPort", port: 1421, reuseExistingServer: !process.env.CI },
 });

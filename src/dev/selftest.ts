@@ -1,4 +1,4 @@
-// Scénario d'autotest visuel (développement uniquement : VITE_SELFTEST=1 pnpm tauri dev).
+// Scénario d'autotest visuel (développement uniquement : VITE_SELFTEST=1 bun tauri dev).
 // Pilote les stores à intervalles fixes pour des captures d'écran externes (grim),
 // sans simuler de touches au niveau du système.
 import { useSettings } from "../stores/settings";

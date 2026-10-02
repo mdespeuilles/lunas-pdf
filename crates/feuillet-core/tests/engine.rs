@@ -1,4 +1,4 @@
-//! Tests d'intégration sur les fixtures (nécessitent libpdfium : `pnpm pdfium`).
+//! Tests d'intégration sur les fixtures (nécessitent libpdfium : `bun pdfium`).
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -22,7 +22,7 @@ fn engine() -> &'static Engine {
         let dir = std::env::var_os("FEUILLET_PDFIUM_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| root().join("src-tauri/pdfium/lib"));
-        Engine::start(Some(&dir)).expect("libpdfium : lancer `pnpm pdfium`")
+        Engine::start(Some(&dir)).expect("libpdfium : lancer `bun pdfium`")
     })
 }
 

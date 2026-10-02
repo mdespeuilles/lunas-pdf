@@ -16,7 +16,7 @@ fn engine() -> &'static Engine {
         let dir = std::env::var_os("FEUILLET_PDFIUM_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| root().join("src-tauri/pdfium/lib"));
-        let e = Engine::start(Some(&dir)).expect("libpdfium : lancer `pnpm pdfium`");
+        let e = Engine::start(Some(&dir)).expect("libpdfium : lancer `bun pdfium`");
         e.set_author("Testeur".into());
         e
     })

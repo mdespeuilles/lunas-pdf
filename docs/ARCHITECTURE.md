@@ -136,8 +136,8 @@ L'original sur disque n'est jamais touché avant « Enregistrer ».
 | Caviardage | `cargo test -p feuillet-core --test redaction` | Texte partiel retiré (extraction PDFium et `pdftotext`), pixels d'un scan, tracés, chiffré, annotations recouvertes |
 | Moteur | `cargo test -p feuillet-core` | Fonctions pures (mots, recherche) ; intégration sur `fixtures/` : rendu et tuiles identiques à la page, texte et géométrie, recherche, chiffrement, liens, formulaires, signatures, annulation par époque |
 | App | `cargo test -p feuillet` | Récents (déduplication, plafond, persistance), préférences, arguments de ligne de commande, export des types TS |
-| UI unitaire | `pnpm test` (Vitest) | Mise en page, ajustements, tuiles, dates relatives, langue |
-| Parcours | `pnpm test:e2e` (Playwright) | Lecture (15 parcours) et annotation (8) : outils au clavier, poignées, mini-barre, annuler/rétablir, surlignage, zone de texte, note, coches, duplication, fermeture d'un document modifié, caviardage, tampon, enregistrer sous. Backend simulé : `vite --mode e2e`, `e2e/mock/bindings.ts` |
+| UI unitaire | `bun run test` (Vitest) | Mise en page, ajustements, tuiles, dates relatives, langue |
+| Parcours | `bun run test:e2e` (Playwright) | Lecture (15 parcours) et annotation (8) : outils au clavier, poignées, mini-barre, annuler/rétablir, surlignage, zone de texte, note, coches, duplication, fermeture d'un document modifié, caviardage, tampon, enregistrer sous. Backend simulé : `vite --mode e2e`, `e2e/mock/bindings.ts` |
 | Visuel | `VITE_SELFTEST=1` ou `2` + `FEUILLET_NO_SINGLE_INSTANCE=1` | Scénarios pilotés par les stores (`src/dev/selftest.ts`) sur l'app réelle, instance isolée (XDG_* temporaires) |
 
 ## Arborescence
