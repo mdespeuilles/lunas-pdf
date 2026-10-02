@@ -70,7 +70,7 @@ const checkPath = computed(() => {
         stroke-linejoin="round"
       />
     </template>
-    <rect v-else-if="annot.body.type === 'redact'" x="0.5" y="0.5" :width="Math.max(0, r.w * k - 1)" :height="Math.max(0, r.h * k - 1)" fill="none" stroke="#e03131" />
+    <rect v-else-if="annot.body.type === 'redact'" x="0.5" y="0.5" :width="Math.max(0, r.w * k - 1)" :height="Math.max(0, r.h * k - 1)" fill="#000" stroke="#e03131" />
   </svg>
 </template>
 

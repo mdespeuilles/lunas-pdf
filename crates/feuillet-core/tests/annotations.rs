@@ -619,3 +619,24 @@ fn image_copied_between_documents() {
             || bytes.windows(b"/Subtype/Image".len()).any(|w| w == b"/Subtype/Image")
     );
 }
+
+#[test]
+fn pending_redaction_renders_black() {
+    let e = engine();
+    let info = e.open(scratch("texte-simple.pdf", "redact-black"), None).unwrap();
+    let area = r(100.0, 200.0, 120.0, 40.0);
+    e.edit(
+        info.id,
+        EditRequest::Apply(vec![add(annot(
+            "x",
+            0,
+            area,
+            "#e03131",
+            AnnotBody::Redact { quads: vec![area] },
+        ))]),
+    )
+    .unwrap();
+    let img = render(info.id, 0, &info);
+    assert_eq!(px(&img, 160.0, 220.0), [0, 0, 0], "intérieur noir");
+    assert!(is_red(px(&img, 100.0, 220.0)), "liseré rouge");
+}

@@ -311,7 +311,14 @@ pub fn build(annot: &Annot, to_display: &Affine, alloc: &mut Alloc, image: Optio
             }
         }
         AnnotBody::Redact { quads } => {
-            // Apparence de marquage (avant application) : contour rouge, intérieur hachuré léger.
+            // Avant application : pavé noir (le rendu final), liseré rouge tant que le contenu
+            // dessous n'est pas supprimé (à l'enregistrement).
+            o.rgb([0.0, 0.0, 0.0], false);
+            for q in quads {
+                let (x, y, qw, qh) = lc.rect(q);
+                o.re(x, y, qw, qh);
+            }
+            o.op("f");
             o.rgb([0.88, 0.19, 0.19], true).n(1.0).op("w");
             for q in quads {
                 let (x, y, qw, qh) = lc.rect(q);
