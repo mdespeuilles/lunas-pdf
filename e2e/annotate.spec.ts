@@ -84,10 +84,21 @@ test("zone de texte : saisie en place puis modification", async ({ page }) => {
   // Le clic marque le bord gauche de la zone, centré verticalement ; une ligne de 12 pt garde sa hauteur.
   const created = (await model(page)).find((a) => a.body.type === "freeText");
   const kk = box.width / 595.28;
-  expect(created.rect.x).toBeCloseTo(300 / kk, 0);
+  expect(created.rect.x + 2).toBeCloseTo(300 / kk, 0);
   expect(created.rect.h).toBeCloseTo(12 * 1.2 + 4, 0);
   expect(created.rect.y + created.rect.h / 2).toBeCloseTo(500 / kk, 0);
   await expect(page.locator(".ai", { hasText: "Montant à confirmer" })).toBeVisible();
+  // Près du bord droit : la zone commence quand même au clic (rétrécie, pas décalée).
+  await page.keyboard.press("t");
+  const nearRight = 595.28 - 80;
+  await page.mouse.click(box.x + nearRight * kk, box.y + 300 * kk);
+  await editor.fill("km");
+  await editor.press("Control+Enter");
+  await expect.poll(async () => (await model(page)).filter((a) => a.body.type === "freeText").length).toBe(2);
+  const right = (await model(page)).find((a) => a.body.type === "freeText" && a.body.text === "km");
+  expect(right.rect.x + 2).toBeCloseTo(nearRight, 0);
+  expect(right.rect.x + right.rect.w).toBeLessThanOrEqual(595.28 + 0.01);
+  await page.keyboard.press("v");
   // Double-clic : édition de l'annotation existante.
   const ft = (await model(page)).find((a) => a.body.type === "freeText");
   const k = box.width / 595.28;
@@ -95,7 +106,7 @@ test("zone de texte : saisie en place puis modification", async ({ page }) => {
   await expect(editor).toBeVisible();
   await editor.fill("Montant validé");
   await editor.press("Control+Enter");
-  await expect.poll(async () => (await model(page)).find((a) => a.body.type === "freeText")?.body.text).toBe("Montant validé");
+  await expect.poll(async () => (await model(page)).find((a) => a.body.type === "freeText" && a.id === ft.id)?.body.text).toBe("Montant validé");
 });
 
 test("note, case à cocher, duplication et déplacement au clavier", async ({ page }) => {

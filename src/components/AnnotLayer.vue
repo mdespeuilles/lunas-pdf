@@ -108,10 +108,14 @@ function onLayerDown(e: PointerEvent) {
   props.tab.selected = null;
   switch (tools.tool) {
     case "text": {
-      // Le point cliqué devient le bord gauche de la zone, centré verticalement sur la première ligne.
-      const h = tools.size * 1.2 + 4;
-      const w = Math.min(200, props.pageW);
-      const rect = { x: Math.min(p.x, props.pageW - w), y: Math.min(Math.max(0, p.y - h / 2), props.pageH - h), w, h };
+      // Le premier caractère commence au point cliqué (marge intérieure de 2 pt compensée),
+      // centré verticalement sur la première ligne. Près du bord droit, la zone se rétrécit
+      // au lieu de se décaler vers la gauche ; elle ne se décale qu'en deçà de 60 pt.
+      const PAD = 2;
+      const h = tools.size * 1.2 + 2 * PAD;
+      const x = Math.max(0, p.x - PAD);
+      const w = Math.max(Math.min(200, props.pageW - x), Math.min(60, props.pageW));
+      const rect = { x: Math.min(x, props.pageW - w), y: Math.min(Math.max(0, p.y - h / 2), props.pageH - h), w, h };
       editing.value = { id: null, rect, text: "", font: tools.font, size: tools.size, color: colorFor(tools.colors.text, "text") };
       void nextTick(() => editor.value?.focus());
       return;
