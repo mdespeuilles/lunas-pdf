@@ -107,10 +107,15 @@ function onLayerDown(e: PointerEvent) {
   const p = toPt(e);
   props.tab.selected = null;
   switch (tools.tool) {
-    case "text":
-      editing.value = { id: null, rect: { x: p.x, y: p.y, w: 200, h: tools.size * 1.2 + 4 }, text: "", font: tools.font, size: tools.size, color: colorFor(tools.colors.text, "text") };
+    case "text": {
+      // Le point cliqué devient le bord gauche de la zone, centré verticalement sur la première ligne.
+      const h = tools.size * 1.2 + 4;
+      const w = Math.min(200, props.pageW);
+      const rect = { x: Math.min(p.x, props.pageW - w), y: Math.min(Math.max(0, p.y - h / 2), props.pageH - h), w, h };
+      editing.value = { id: null, rect, text: "", font: tools.font, size: tools.size, color: colorFor(tools.colors.text, "text") };
       void nextTick(() => editor.value?.focus());
       return;
+    }
     case "note":
       noteEdit.value = { id: null, at: { x: Math.min(p.x, props.pageW - 22), y: Math.min(p.y, props.pageH - 22) }, text: "" };
       void nextTick(() => noteInput.value?.focus());
@@ -462,6 +467,7 @@ defineExpose({ duplicate, remove, startEdit });
       <textarea
         ref="editor"
         v-model="editing.text"
+        rows="1"
         :aria-label="t('annot.editText')"
         :placeholder="t('annot.textPlaceholder')"
         spellcheck="true"

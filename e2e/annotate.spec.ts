@@ -81,6 +81,12 @@ test("zone de texte : saisie en place puis modification", async ({ page }) => {
   await editor.fill("Montant à confirmer");
   await editor.press("Control+Enter");
   await expect.poll(async () => (await model(page)).find((a) => a.body.type === "freeText")?.body.text).toBe("Montant à confirmer");
+  // Le clic marque le bord gauche de la zone, centré verticalement ; une ligne de 12 pt garde sa hauteur.
+  const created = (await model(page)).find((a) => a.body.type === "freeText");
+  const kk = box.width / 595.28;
+  expect(created.rect.x).toBeCloseTo(300 / kk, 0);
+  expect(created.rect.h).toBeCloseTo(12 * 1.2 + 4, 0);
+  expect(created.rect.y + created.rect.h / 2).toBeCloseTo(500 / kk, 0);
   await expect(page.locator(".ai", { hasText: "Montant à confirmer" })).toBeVisible();
   // Double-clic : édition de l'annotation existante.
   const ft = (await model(page)).find((a) => a.body.type === "freeText");
