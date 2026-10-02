@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<title>Feuillet — Accueil</title>
+<script src="f897a795-8759-47cc-8d7a-f67a3bd8576b"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.board{box-sizing:border-box;display:flex;gap:64px;padding:48px;align-items:flex-start;background:#d6d6db;font-family:system-ui,-apple-system,"Cantarell","Noto Sans","Segoe UI",Ubuntu,sans-serif;-webkit-font-smoothing:antialiased}
+.bcol{display:flex;flex-direction:column;gap:14px}
+.blabel{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#45454d}
+.th{--accent:#3466f6;--on-accent:#fff;--bg:#f7f7f8;--chrome:#eeeef1;--sidebar:#eaeaed;--canvas:#dcdce1;--surface:#fff;--surface-2:#f3f3f5;--line:rgba(20,20,35,.10);--line-2:rgba(20,20,35,.18);--text:#1b1b20;--text-2:#52525c;--text-3:#696973;--hover:rgba(20,20,35,.06);--press:rgba(20,20,35,.10);--tip-bg:#25252a;--tip-fg:#f4f4f6;--ok:#167a3d;--warn:#9a5300;--bad:#c02a2a;--ok-bg:#e6f3ea;--warn-bg:#fbf0dc;--bad-bg:#fbe8e8;--shadow:0 1px 2px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.10);--shadow-lg:0 2px 8px rgba(0,0,0,.08),0 24px 60px rgba(0,0,0,.22);--scrim:rgba(30,30,40,.30);--accent-soft:color-mix(in oklab,var(--accent) 13%,transparent);--accent-text:color-mix(in oklab,var(--accent) 80%,black);--ring:0 0 0 3px color-mix(in oklab,var(--accent) 30%,transparent);color:var(--text);font-size:13px;line-height:1.4}
+.th.dark{--bg:#1e1e22;--chrome:#27272c;--sidebar:#222226;--canvas:#131316;--surface:#2d2d33;--surface-2:#35353b;--line:rgba(255,255,255,.09);--line-2:rgba(255,255,255,.17);--text:#ededf1;--text-2:#acacb6;--text-3:#93939e;--hover:rgba(255,255,255,.07);--press:rgba(255,255,255,.12);--tip-bg:#46464e;--ok:#5ccb8a;--warn:#f2a640;--bad:#ff7a7a;--ok-bg:rgba(92,203,138,.13);--warn-bg:rgba(242,166,64,.13);--bad-bg:rgba(255,122,122,.13);--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.45);--shadow-lg:0 2px 8px rgba(0,0,0,.3),0 24px 60px rgba(0,0,0,.6);--scrim:rgba(0,0,0,.5);--accent-soft:color-mix(in oklab,var(--accent) 26%,transparent);--accent-text:color-mix(in oklab,var(--accent) 55%,white)}
+.win{position:relative;box-sizing:border-box;width:1280px;height:800px;border-radius:12px;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;box-shadow:0 0 0 1px rgba(0,0,0,.16),0 30px 80px rgba(20,20,40,.28)}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ic.s{width:16px;height:16px}.ic.xs{width:14px;height:14px}.ic.l{width:22px;height:22px}.ic.xl{width:28px;height:28px;stroke-width:1.5}
+.titlebar{display:flex;align-items:center;gap:4px;height:42px;padding:0 10px;background:var(--chrome);flex:none}
+.tab{display:flex;align-items:center;gap:8px;height:30px;width:210px;padding:0 5px 0 10px;border-radius:8px;color:var(--text-2);box-sizing:border-box;font-size:12.5px}
+.tab .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--line),0 1px 2px rgba(0,0,0,.06)}
+.th.dark .tab.on{background:var(--surface-2)}
+.cl{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;color:var(--text-3);border:0;background:transparent;padding:0}
+.dirty{width:8px;height:8px;border-radius:50%;background:var(--text-2)}
+.drag{flex:1;align-self:stretch}
+.wctl{display:flex;gap:10px;padding-left:8px}
+.wbtn{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--hover);color:var(--text-2);border:0;padding:0}
+.appmark{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--accent);color:var(--on-accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:30px;padding:0 14px;border-radius:7px;border:0;font:inherit;font-size:13px;font-weight:500;background:var(--hover);color:var(--text);white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--on-accent)}
+.btn.out{background:var(--surface);box-shadow:0 0 0 1px var(--line-2)}
+.btn.gh{background:transparent;color:var(--text-2)}
+.btn.lg{height:36px;padding:0 18px}
+.btn .kbd{background:rgba(255,255,255,.2);box-shadow:none;color:inherit}
+.kbd{display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:4px;font:500 11px/1 ui-monospace,"JetBrains Mono","DejaVu Sans Mono",Menlo,monospace;background:var(--hover);box-shadow:inset 0 0 0 1px var(--line);color:var(--text-2)}
+.seg{display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--hover)}
+.seg>button{display:flex;align-items:center;justify-content:center;gap:6px;height:26px;min-width:30px;padding:0 8px;border-radius:7px;border:0;background:transparent;color:var(--text-2);font:inherit;font-size:12.5px;font-weight:500}
+.seg>button.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--line),0 1px 2px rgba(0,0,0,.08)}
+.th.dark .seg>button.on{background:var(--surface-2)}
+.home{flex:1;display:flex;flex-direction:column;align-items:center;padding-top:52px;background:var(--bg);border-top:1px solid var(--line)}
+.wrap{width:900px;display:flex;flex-direction:column;gap:36px}
+.drop{position:relative;height:250px;border-radius:16px;border:1.5px dashed var(--line-2);background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
+.th.dark .drop{background:rgba(255,255,255,.03)}
+.drop.over{border:2px solid var(--accent);background:var(--accent-soft)}
+.dropic{display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:var(--accent-soft);color:var(--accent-text);margin-bottom:6px}
+.drop h2{margin:0;font-size:17px;font-weight:600}
+.drop p{margin:0;color:var(--text-2)}
+.recent-h{display:flex;align-items:center;gap:10px}
+.recent-h h3{margin:0;font-size:13px;font-weight:600}
+.grid6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:20px}
+.rc{display:flex;flex-direction:column;gap:9px;min-width:0;border-radius:10px;padding:8px;margin:-8px;position:relative}
+.rc.hov{background:var(--hover)}
+.rthumb{position:relative;height:178px;background:#fff;border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.09),0 2px 8px rgba(0,0,0,.08);box-sizing:border-box;padding:16px 14px;display:flex;flex-direction:column;gap:5px;overflow:hidden}
+.ln{height:3px;border-radius:2px;background:#d6d6dc;flex:none}
+.ln.h{height:6px;width:62%;background:#8f8f98}
+.ln.k{height:4px;width:40%;background:#a7a7b0;margin-top:6px}
+.badge{position:absolute;top:8px;right:8px;display:grid;place-items:center;width:24px;height:24px;border-radius:7px;background:rgba(25,25,30,.78);color:#fff}
+.lockc{position:absolute;inset:0;display:grid;place-items:center;background:rgba(240,240,244,.6);backdrop-filter:blur(3px);color:#4a4a52}
+.rname{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rmeta{font-size:11.5px;color:var(--text-3);margin-top:-6px}
+.more{position:absolute;top:14px;left:14px;display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--surface);color:var(--text);border:0;box-shadow:0 0 0 1px var(--line),0 2px 6px rgba(0,0,0,.12);padding:0}
+</style>
+</helmet>
+<div class="board" style="width: 2720px; height: 924px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="bcol">
+<div class="blabel">{{t.label}}</div>
+<div class="{{t.th}} win" style="--accent: {{accent}}">
+<div class="titlebar">
+<div class="tab on"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.home}}"></path></svg><span class="nm">Accueil</span><button class="cl" aria-label="Fermer l’onglet (Ctrl W)"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.x}}"></path></svg></button></div>
+<button class="cl" style="width: 30px; height: 30px; border-radius: 8px" aria-label="Ouvrir un document (Ctrl O)"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.plus}}"></path></svg></button>
+<div class="drag"></div>
+<button class="btn gh" style="height: 30px; padding: 0 10px" aria-label="Menu principal"><svg class="ic" sc-camel-view-box="0 0 24 24"><path d="{{i.menu}}"></path></svg></button>
+<div class="wctl">
+<button class="wbtn" aria-label="Réduire"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.min}}"></path></svg></button>
+<button class="wbtn" aria-label="Agrandir"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.max}}"></path></svg></button>
+<button class="wbtn" aria-label="Fermer la fenêtre"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.x}}"></path></svg></button>
+</div>
+</div>
+<div class="home">
+<div class="wrap">
+<div class="drop">
+<div class="dropic"><svg class="ic xl" sc-camel-view-box="0 0 24 24"><path d="{{i.upload}}"></path></svg></div>
+<h2>Déposez un PDF ici</h2>
+<p>ou n’importe où dans la fenêtre. Plusieurs fichiers s’ouvrent dans des onglets.</p>
+<div style="display: flex; align-items: center; gap: 10px; margin-top: 10px">
+<button class="btn pri lg"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.folder}}"></path></svg>Ouvrir un fichier…<span class="kbd">Ctrl O</span></button>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 18px">
+<div class="recent-h">
+<h3>Récents</h3>
+<div style="flex-grow: 1"></div>
+<div class="seg"><button class="on" aria-label="Vue en grille"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.grid}}"></path></svg></button><button aria-label="Vue en liste"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.toc}}"></path></svg></button></div>
+<button class="btn gh">Effacer la liste</button>
+</div>
+<div class="grid6">
+<sc-for list="{{recents}}" as="r" hint-placeholder-count="6">
+<div class="{{r.cls}}">
+<div class="rthumb">
+<div class="ln h"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width: 78%"></div>
+<div class="ln k"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width: 64%"></div>
+<div class="ln k"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width: 52%"></div>
+<sc-if value="{{r.lock}}" hint-placeholder-val="{{false}}"><div class="lockc"><svg class="ic xl" sc-camel-view-box="0 0 24 24"><path d="{{i.lock}}"></path></svg></div></sc-if>
+<sc-if value="{{r.signed}}" hint-placeholder-val="{{false}}"><div class="badge" title="Signé numériquement"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.shieldOk}}"></path></svg></div></sc-if>
+<sc-if value="{{r.form}}" hint-placeholder-val="{{false}}"><div class="badge" title="Formulaire"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.form}}"></path></svg></div></sc-if>
+</div>
+<sc-if value="{{r.hov}}" hint-placeholder-val="{{false}}"><button class="more" aria-label="Options du document"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.more}}"></path></svg></button></sc-if>
+<div class="rname">{{r.name}}</div>
+<div class="rmeta">{{r.meta}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;both&quot;,&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;both&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#3466f6&quot;,&quot;#7048e8&quot;,&quot;#e8590c&quot;,&quot;#0c8a6b&quot;],&quot;default&quot;:&quot;#3466f6&quot;},&quot;$preview&quot;:{&quot;width&quot;:2720,&quot;height&quot;:924}}">
+class Component extends DCLogic {
+  icons() {
+    return {
+      home: 'M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+      x: 'M18 6L6 18 M6 6l12 12',
+      plus: 'M12 5v14 M5 12h14',
+      min: 'M6 12h12',
+      max: 'M6 6h12v12H6z',
+      menu: 'M4 6h16 M4 12h16 M4 18h16',
+      upload: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12',
+      folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+      grid: 'M4 3h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 13h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z M4 13h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z',
+      toc: 'M8 6h13 M8 12h13 M8 18h13 M3.5 6h.01 M3.5 12h.01 M3.5 18h.01',
+      lock: 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z M7 11V7a5 5 0 0 1 10 0v4',
+      shieldOk: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4',
+      form: 'M3 6h18v12H3z M7 10v4',
+      more: 'M12 11.2a.8.8 0 1 0 0 1.6a.8.8 0 1 0 0-1.6z M19 11.2a.8.8 0 1 0 0 1.6a.8.8 0 1 0 0-1.6z M5 11.2a.8.8 0 1 0 0 1.6a.8.8 0 1 0 0-1.6z'
+    };
+  }
+  renderVals() {
+    const th = this.props.theme ?? 'both';
+    const all = [{ th: 'th', label: 'Thème clair' }, { th: 'th dark', label: 'Thème sombre' }];
+    const themes = th === 'light' ? [all[0]] : th === 'dark' ? [all[1]] : all;
+    const recents = [
+      { name: 'Contrat de prestation.pdf', meta: 'Il y a 2 h · 12 pages', hov: true },
+      { name: 'Annexes techniques.pdf', meta: 'Hier · 8 pages' },
+      { name: 'Bulletin d’adhésion.pdf', meta: 'Lundi · 3 pages', form: true },
+      { name: 'Devis 2026-118.pdf', meta: '28 sept. · 2 pages', signed: true },
+      { name: 'Relevé de compte.pdf', meta: '21 sept. · protégé', lock: true },
+      { name: 'Notice d’installation.pdf', meta: '14 sept. · 46 pages' }
+    ].map((r) => ({ ...r, cls: r.hov ? 'rc hov' : 'rc', lock: !!r.lock, signed: !!r.signed, form: !!r.form, hov: !!r.hov }));
+    return { themes, accent: this.props.accent ?? '#3466f6', i: this.icons(), recents };
+  }
+}
+</script>
+
+
+</body></html>

@@ -1,0 +1,61 @@
+/* Tokens repris tels quels de design/design-system.css (.th → :root, .th.dark → :root.dark).
+   Ne pas modifier ici : mettre à jour le design puis regénérer. */
+:root {
+  --accent:#3466f6;
+  --on-accent:#fff;
+  --bg:#f7f7f8;
+  --chrome:#eeeef1;
+  --sidebar:#eaeaed;
+  --canvas:#dcdce1;
+  --surface:#fff;
+  --surface-2:#f3f3f5;
+  --line:rgba(20,20,35,.10);
+  --line-2:rgba(20,20,35,.18);
+  --text:#1b1b20;
+  --text-2:#52525c;
+  --text-3:#696973;
+  --hover:rgba(20,20,35,.06);
+  --press:rgba(20,20,35,.10);
+  --tip-bg:#25252a;
+  --tip-fg:#f4f4f6;
+  --ok:#167a3d;
+  --warn:#9a5300;
+  --bad:#c02a2a;
+  --ok-bg:#e6f3ea;
+  --warn-bg:#fbf0dc;
+  --bad-bg:#fbe8e8;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.10);
+  --shadow-lg:0 2px 8px rgba(0,0,0,.08),0 24px 60px rgba(0,0,0,.22);
+  --scrim:rgba(30,30,40,.30);
+  --accent-soft:color-mix(in oklab,var(--accent) 13%,transparent);
+  --accent-text:color-mix(in oklab,var(--accent) 80%,black);
+  --ring:0 0 0 3px color-mix(in oklab,var(--accent) 30%,transparent);
+}
+
+:root.dark {
+  --bg:#1e1e22;
+  --chrome:#27272c;
+  --sidebar:#222226;
+  --canvas:#131316;
+  --surface:#2d2d33;
+  --surface-2:#35353b;
+  --line:rgba(255,255,255,.09);
+  --line-2:rgba(255,255,255,.17);
+  --text:#ededf1;
+  --text-2:#acacb6;
+  --text-3:#93939e;
+  --hover:rgba(255,255,255,.07);
+  --press:rgba(255,255,255,.12);
+  --tip-bg:#46464e;
+  --ok:#5ccb8a;
+  --warn:#f2a640;
+  --bad:#ff7a7a;
+  --ok-bg:rgba(92,203,138,.13);
+  --warn-bg:rgba(242,166,64,.13);
+  --bad-bg:rgba(255,122,122,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.45);
+  --shadow-lg:0 2px 8px rgba(0,0,0,.3),0 24px 60px rgba(0,0,0,.6);
+  --scrim:rgba(0,0,0,.5);
+  --accent-soft:color-mix(in oklab,var(--accent) 26%,transparent);
+  --accent-text:color-mix(in oklab,var(--accent) 55%,white);
+}

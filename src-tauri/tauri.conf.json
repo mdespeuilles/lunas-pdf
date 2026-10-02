@@ -1,0 +1,73 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Feuillet",
+  "mainBinaryName": "feuillet",
+  "version": "0.1.0",
+  "identifier": "fr.lunas.feuillet",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Feuillet",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 720,
+        "minHeight": 480,
+        "decorations": false,
+        "dragDropEnabled": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob: feuillet: http://feuillet.localhost; connect-src 'self' ipc: http://ipc.localhost feuillet: http://feuillet.localhost; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "appimage",
+      "deb",
+      "rpm",
+      "dmg",
+      "app",
+      "msi"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Lecteur et éditeur PDF",
+    "longDescription": "Feuillet est un lecteur et éditeur PDF simple, rapide et beau.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "pdf"
+        ],
+        "mimeType": "application/pdf",
+        "name": "PDF",
+        "description": "Document PDF",
+        "role": "Viewer"
+      }
+    ],
+    "linux": {
+      "deb": {
+        "depends": [],
+        "desktopTemplate": "feuillet.desktop"
+      },
+      "rpm": {
+        "depends": [],
+        "desktopTemplate": "feuillet.desktop"
+      }
+    }
+  }
+}

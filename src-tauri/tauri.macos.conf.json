@@ -1,0 +1,1 @@
+{ "bundle": { "resources": { "pdfium/lib/libpdfium.dylib": "pdfium/libpdfium.dylib", "pdfium/LICENSE": "pdfium/LICENSE" } } }

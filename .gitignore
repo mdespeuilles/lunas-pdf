@@ -1,0 +1,12 @@
+node_modules/
+dist/
+target/
+src-tauri/gen/
+src-tauri/pdfium/
+test-results/
+playwright-report/
+.vite/
+*.log
+.DS_Store
+# Fixture lourd régénérable : python fixtures/scripts/gen_fixtures.py fixtures --only scan-lourd
+fixtures/scan-lourd.pdf

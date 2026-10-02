@@ -1,0 +1,15 @@
+[package]
+name = "feuillet-core"
+description = "Moteur PDF de Feuillet : lecture et rendu via PDFium (voir docs/ADR-001)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+pdfium-render.workspace = true
+serde.workspace = true
+specta.workspace = true
+thiserror.workspace = true
+image.workspace = true
+lopdf = "0.45"
+flate2 = "1"

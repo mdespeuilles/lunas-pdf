@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<title>Feuillet — Organisation des pages</title>
+<script src="237a5e9d-cd84-4934-9b10-d03c7ed5897e"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.board{box-sizing:border-box;display:flex;gap:64px;padding:48px;align-items:flex-start;background:#d6d6db;font-family:system-ui,-apple-system,"Cantarell","Noto Sans","Segoe UI",Ubuntu,sans-serif;-webkit-font-smoothing:antialiased}
+.bcol{display:flex;flex-direction:column;gap:14px}
+.blabel{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#45454d}
+.th{--accent:#3466f6;--on-accent:#fff;--bg:#f7f7f8;--chrome:#eeeef1;--canvas:#e3e3e7;--canvas-2:#dadadf;--surface:#fff;--surface-2:#f3f3f5;--line:rgba(20,20,35,.10);--line-2:rgba(20,20,35,.18);--text:#1b1b20;--text-2:#52525c;--text-3:#696973;--hover:rgba(20,20,35,.06);--press:rgba(20,20,35,.10);--tip-bg:#25252a;--tip-fg:#f4f4f6;--shadow-lg:0 2px 8px rgba(0,0,0,.08),0 24px 60px rgba(0,0,0,.22);--accent-soft:color-mix(in oklab,var(--accent) 13%,transparent);--accent-text:color-mix(in oklab,var(--accent) 80%,black);color:var(--text);font-size:13px;line-height:1.4}
+.th.dark{--bg:#1e1e22;--chrome:#27272c;--canvas:#18181b;--canvas-2:#131316;--surface:#2d2d33;--surface-2:#35353b;--line:rgba(255,255,255,.09);--line-2:rgba(255,255,255,.17);--text:#ededf1;--text-2:#acacb6;--text-3:#93939e;--hover:rgba(255,255,255,.07);--press:rgba(255,255,255,.12);--tip-bg:#46464e;--shadow-lg:0 2px 8px rgba(0,0,0,.3),0 24px 60px rgba(0,0,0,.6);--accent-soft:color-mix(in oklab,var(--accent) 26%,transparent);--accent-text:color-mix(in oklab,var(--accent) 55%,white)}
+.win{position:relative;box-sizing:border-box;width:1280px;height:800px;border-radius:12px;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;box-shadow:0 0 0 1px rgba(0,0,0,.16),0 30px 80px rgba(20,20,40,.28)}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ic.s{width:16px;height:16px}.ic.xs{width:14px;height:14px}
+.titlebar{display:flex;align-items:center;gap:4px;height:42px;padding:0 10px;background:var(--chrome);flex:none}
+.tab{display:flex;align-items:center;gap:8px;height:30px;width:210px;padding:0 5px 0 10px;border-radius:8px;color:var(--text-2);box-sizing:border-box;font-size:12.5px}
+.tab .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--line),0 1px 2px rgba(0,0,0,.06)}
+.th.dark .tab.on{background:var(--surface-2)}
+.tab.split{box-shadow:inset 0 0 0 1px var(--line-2)}
+.cl{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;color:var(--text-3);border:0;background:transparent;padding:0}
+.drag{flex:1;align-self:stretch}
+.wctl{display:flex;gap:10px;padding-left:8px}
+.wbtn{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--hover);color:var(--text-2);border:0;padding:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:30px;padding:0 14px;border-radius:7px;border:0;font:inherit;font-size:13px;font-weight:500;background:var(--hover);color:var(--text);white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--on-accent)}
+.btn.gh{background:transparent;color:var(--text-2)}
+.seg{display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--hover)}
+.seg>button{display:flex;align-items:center;justify-content:center;gap:6px;height:26px;min-width:30px;padding:0 8px;border-radius:7px;border:0;background:transparent;color:var(--text-2);font:inherit;font-size:12.5px;font-weight:500}
+.seg>button.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--line),0 1px 2px rgba(0,0,0,.08)}
+.th.dark .seg>button.on{background:var(--surface-2)}
+.toolbar{display:flex;align-items:center;gap:4px;height:46px;padding:0 10px;background:var(--chrome);border-bottom:1px solid var(--line);flex:none}
+.tb{position:relative;display:grid;place-items:center;width:32px;height:32px;border-radius:7px;color:var(--text-2);background:transparent;border:0;padding:0;font:inherit;flex:none}
+.sep{width:1px;height:20px;background:var(--line-2);margin:0 6px;flex:none}
+.grow{flex:1}
+.ttl{font-size:13px;font-weight:600;padding:0 4px}
+.selc{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:12px;background:var(--accent-soft);color:var(--accent-text);font-size:12px;font-weight:500}
+.range{position:relative;width:110px;height:4px;border-radius:2px;background:var(--line-2)}
+.range .fill{position:absolute;left:0;top:0;bottom:0;width:55%;border-radius:2px;background:var(--accent)}
+.range .knob{position:absolute;left:55%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.15),0 1px 3px rgba(0,0,0,.25)}
+.body{flex:1;display:flex;min-height:0;position:relative}
+.pane{display:flex;flex-direction:column;min-width:0;background:var(--canvas);overflow:hidden}
+.pane.r{background:var(--canvas-2)}
+.paneh{display:flex;align-items:center;gap:8px;height:44px;padding:0 20px 0 28px;font-size:12.5px;color:var(--text-2);flex:none}
+.paneh b{color:var(--text);font-weight:600}
+.pgrid{display:grid;gap:22px 28px;padding:8px 28px}
+.pt{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:11.5px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.pp{position:relative;width:116px;height:164px;background:#fff;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;padding:14px 12px;display:flex;flex-direction:column;gap:4px;flex:none}
+.pp.land{width:164px;height:116px;margin:24px 0}
+.pt.sel .pp{box-shadow:0 0 0 2.5px var(--accent),0 0 0 7px var(--accent-soft)}
+.pt.sel .num{background:var(--accent);color:var(--on-accent)}
+.pt.gone .pp{opacity:.3;box-shadow:0 0 0 1.5px var(--accent)}
+.num{padding:1px 7px;border-radius:9px}
+.ckb{position:absolute;top:-8px;right:-8px;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;box-shadow:0 0 0 2px var(--canvas-2)}
+.rotb{position:absolute;top:6px;left:6px;display:grid;place-items:center;width:20px;height:20px;border-radius:6px;background:rgba(25,25,30,.75);color:#fff}
+.ln{height:3px;border-radius:2px;background:#d6d6dc;flex:none}
+.ln.h{height:5px;width:62%;background:#8f8f98}
+.ln.k{height:3px;width:42%;background:#a2a2ab;margin-top:5px}
+.fig{height:40px;border-radius:2px;background:#e4e8f0;margin:4px 0;flex:none}
+.ins{position:absolute;top:-6px;left:-16px;width:3px;height:176px;border-radius:2px;background:var(--accent);z-index:3}
+.ins::before{content:"";position:absolute;left:-3.5px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.ins::after{content:"";position:absolute;left:-3.5px;bottom:-5px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.divider{position:relative;width:1px;background:var(--line-2);flex:none}
+.divider span{position:absolute;top:50%;left:-3px;width:7px;height:40px;margin-top:-20px;border-radius:4px;background:var(--surface);box-shadow:0 0 0 1px var(--line-2)}
+.ghost{position:absolute;z-index:20;left:332px;top:126px;width:150px;height:200px}
+.ghost .pp{position:absolute;box-shadow:0 0 0 1px rgba(0,0,0,.1),0 18px 40px rgba(0,0,0,.28)}
+.cnt{position:absolute;top:-10px;right:4px;display:grid;place-items:center;min-width:24px;height:24px;padding:0 6px;box-sizing:border-box;border-radius:12px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;box-shadow:0 0 0 2px #fff}
+.dpill{position:absolute;left:-6px;top:190px;display:flex;align-items:center;gap:6px;padding:5px 10px 5px 8px;border-radius:8px;background:var(--tip-bg);color:var(--tip-fg);font-size:12px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+</style>
+</helmet>
+<div class="board" style="width: 2720px; height: 924px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="bcol">
+<div class="blabel">{{t.label}}</div>
+<div class="{{t.th}} win" style="--accent: {{accent}}">
+<div class="titlebar">
+<div class="tab on"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.file}}"></path></svg><span class="nm">Contrat de prestation.pdf</span><button class="cl" aria-label="Fermer l’onglet (Ctrl W)"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.x}}"></path></svg></button></div>
+<div class="tab split"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.split}}"></path></svg><span class="nm">Annexes techniques.pdf</span><button class="cl" aria-label="Fermer l’onglet"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.x}}"></path></svg></button></div>
+<button class="cl" style="width: 30px; height: 30px; border-radius: 8px" aria-label="Ouvrir un document (Ctrl O)"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.plus}}"></path></svg></button>
+<div class="drag"></div>
+<div class="wctl">
+<button class="wbtn" aria-label="Réduire"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.min}}"></path></svg></button>
+<button class="wbtn" aria-label="Agrandir"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.max}}"></path></svg></button>
+<button class="wbtn" aria-label="Fermer la fenêtre"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.x}}"></path></svg></button>
+</div>
+</div>
+<div class="toolbar">
+<button class="btn gh" style="padding: 0 10px 0 6px"><svg class="ic" sc-camel-view-box="0 0 24 24"><path d="{{i.chevL}}"></path></svg>Lecture</button>
+<div class="sep"></div>
+<span class="ttl">Organiser les pages</span>
+<span class="selc">2 pages sélectionnées</span>
+<div class="sep"></div>
+<button class="tb" aria-label="Pivoter à gauche (Ctrl Maj R)"><svg class="ic" sc-camel-view-box="0 0 24 24"><path d="{{i.rotCcw}}"></path></svg></button>
+<button class="tb" aria-label="Pivoter à droite (Ctrl R)"><svg class="ic" sc-camel-view-box="0 0 24 24"><path d="{{i.rotCw}}"></path></svg></button>
+<button class="tb" aria-label="Dupliquer (Ctrl D)"><svg class="ic" sc-camel-view-box="0 0 24 24"><path d="{{i.copy}}"></path></svg></button>
+<button class="tb" aria-label="Insérer une page blanche (Ctrl Maj N)"><svg class="ic" sc-camel-view-box="0 0 24 24"><path d="{{i.filePlus}}"></path></svg></button>
+<button class="tb" aria-label="Extraire en PDF"><svg class="ic" sc-camel-view-box="0 0 24 24"><path d="{{i.download}}"></path></svg></button>
+<button class="tb" aria-label="Supprimer (Suppr)"><svg class="ic" sc-camel-view-box="0 0 24 24"><path d="{{i.trash}}"></path></svg></button>
+<div class="grow"></div>
+<svg class="ic xs" style="color: var(--text-3)" sc-camel-view-box="0 0 24 24"><path d="{{i.vSingle}}"></path></svg>
+<div class="range" role="slider" aria-label="Taille des miniatures" aria-valuenow="55"><span class="fill"></span><span class="knob"></span></div>
+<svg class="ic" style="color: var(--text-3)" sc-camel-view-box="0 0 24 24"><path d="{{i.vSingle}}"></path></svg>
+<div class="sep"></div>
+<div class="seg"><button aria-label="Un document"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.vSingle}}"></path></svg></button><button class="on" aria-label="Deux documents côte à côte"><svg class="ic s" sc-camel-view-box="0 0 24 24"><path d="{{i.split}}"></path></svg>Côte à côte</button></div>
+<button class="btn pri" style="margin-left: 8px">Terminé</button>
+</div>
+<div class="body">
+<div class="pane" style="flex-grow: 1">
+<div class="paneh"><b>Contrat de prestation.pdf</b><span>· 12 pages</span></div>
+<div class="pgrid" style="grid-template-columns: repeat(5, 116px)">
+<sc-for list="{{left}}" as="p" hint-placeholder-count="12">
+<div class="pt">
+<sc-if value="{{p.ins}}" hint-placeholder-val="{{false}}"><span class="ins"></span></sc-if>
+<div class="{{p.pcls}}">
+<div class="ln h"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width: 76%"></div>
+<sc-if value="{{p.fig}}" hint-placeholder-val="{{false}}"><div class="fig"></div></sc-if>
+<div class="ln k"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width: 60%"></div>
+<sc-if value="{{p.land}}" hint-placeholder-val="{{false}}"><span class="rotb" title="Pivotée"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.rotCw}}"></path></svg></span></sc-if>
+</div>
+<span class="num">{{p.n}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+<div class="divider"><span></span></div>
+<div class="pane r" style="width: 470px">
+<div class="paneh"><b>Annexes techniques.pdf</b><span>· 8 pages</span><span class="grow"></span><button class="btn gh" style="height: 26px; padding: 0 8px; font-size: 12px">Fermer</button></div>
+<div class="pgrid" style="grid-template-columns: repeat(3, 116px)">
+<sc-for list="{{right}}" as="p" hint-placeholder-count="8">
+<div class="{{p.cls}}">
+<div class="pp">
+<div class="ln h"></div><div class="ln"></div><div class="ln" style="width: 70%"></div>
+<sc-if value="{{p.fig}}" hint-placeholder-val="{{false}}"><div class="fig" style="height: 52px"></div></sc-if>
+<div class="ln"></div><div class="ln"></div><div class="ln" style="width: 55%"></div>
+<sc-if value="{{p.sel}}" hint-placeholder-val="{{false}}"><span class="ckb"><svg class="ic xs" style="stroke-width: 3" sc-camel-view-box="0 0 24 24"><path d="{{i.check}}"></path></svg></span></sc-if>
+</div>
+<span class="num">{{p.n}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+<div class="ghost" aria-hidden="true">
+<div class="pp" style="left: 12px; top: 6px; transform: rotate(5deg)"><div class="ln h"></div><div class="ln"></div><div class="fig" style="height: 52px"></div><div class="ln"></div><div class="ln"></div></div>
+<div class="pp" style="left: 0; top: 0; transform: rotate(-3deg)"><div class="ln h"></div><div class="ln"></div><div class="ln" style="width: 70%"></div><div class="fig" style="height: 52px"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width: 55%"></div></div>
+<span class="cnt">2</span>
+<span class="dpill"><svg class="ic xs" sc-camel-view-box="0 0 24 24"><path d="{{i.plus}}"></path></svg>Copier avant la page 3</span>
+</div>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;both&quot;,&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;both&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#3466f6&quot;,&quot;#7048e8&quot;,&quot;#e8590c&quot;,&quot;#0c8a6b&quot;],&quot;default&quot;:&quot;#3466f6&quot;},&quot;$preview&quot;:{&quot;width&quot;:2720,&quot;height&quot;:924}}">
+class Component extends DCLogic {
+  icons() {
+    return {
+      file: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6',
+      split: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M12 3v18',
+      x: 'M18 6L6 18 M6 6l12 12',
+      plus: 'M12 5v14 M5 12h14',
+      min: 'M6 12h12',
+      max: 'M6 6h12v12H6z',
+      check: 'M20 6L9 17l-5-5',
+      chevL: 'M15 18l-6-6 6-6',
+      rotCw: 'M21 12a9 9 0 1 1-3-6.7L21 8 M21 3v5h-5',
+      rotCcw: 'M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5',
+      copy: 'M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2',
+      filePlus: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 12v6 M9 15h6',
+      download: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3',
+      trash: 'M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
+      vSingle: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'
+    };
+  }
+  renderVals() {
+    const th = this.props.theme ?? 'both';
+    const all = [{ th: 'th', label: 'Thème clair' }, { th: 'th dark', label: 'Thème sombre' }];
+    const themes = th === 'light' ? [all[0]] : th === 'dark' ? [all[1]] : all;
+    const left = Array.from({ length: 12 }, (_, k) => {
+      const n = k + 1;
+      const land = n === 9;
+      return { n, ins: n === 3, fig: n === 5 || n === 9 || n === 11, land, pcls: land ? 'pp land' : 'pp' };
+    });
+    const right = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8'].map((n, k) => {
+      const sel = n === 'A3' || n === 'A4';
+      return { n, sel, fig: k % 2 === 0, cls: sel ? 'pt sel gone' : 'pt' };
+    });
+    return { themes, accent: this.props.accent ?? '#3466f6', i: this.icons(), left, right };
+  }
+}
+</script>
+
+
+</body></html>

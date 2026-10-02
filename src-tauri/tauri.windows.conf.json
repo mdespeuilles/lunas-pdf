@@ -1,0 +1,1 @@
+{ "bundle": { "resources": { "pdfium/bin/pdfium.dll": "pdfium/pdfium.dll", "pdfium/LICENSE": "pdfium/LICENSE" } } }

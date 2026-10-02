@@ -1,0 +1,6 @@
+reportlab
+pikepdf
+pillow
+numpy
+pyhanko
+cryptography

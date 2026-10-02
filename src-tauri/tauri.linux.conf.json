@@ -1,0 +1,1 @@
+{ "bundle": { "resources": { "pdfium/lib/libpdfium.so": "pdfium/libpdfium.so", "pdfium/LICENSE": "pdfium/LICENSE" } } }
