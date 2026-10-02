@@ -32,7 +32,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 | Fonction | État | Notes |
 |---|---|---|
 | Bouton Annoter (Ctrl Maj A), barre d'outils secondaire, « Terminé » | ✅ | Infobulles nom + touche |
-| V H U K T N R O L A C X | ✅ | H/U/K : glisser sur le texte, ou touche sur une sélection ; surlignage de zone sur les scans |
+| V H U K T N R O L A C X | ✅ | H/U/K : glisser sur le texte, ou touche sur une sélection ; surlignage de zone sur les scans. Outils de pose à usage unique (retour à la sélection) ; H/U/K restent actifs |
 | S (signature) | ⬜ | Phase 4 (bouton présent, message explicatif) |
 | I (tampon ou image) | ✅ | PNG (transparence conservée) et JPEG |
 | Panneau contextuel : 6 couleurs, épaisseur, police, taille, symbole | ✅ | |

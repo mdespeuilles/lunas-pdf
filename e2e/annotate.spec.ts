@@ -236,3 +236,28 @@ test("mini-barre : reste dans la page près du bord droit", async ({ page }) => 
   expect(m.x).toBeGreaterThanOrEqual(box.x);
   await expect(mini.getByRole("button", { name: "Supprimer (Suppr)" })).toBeInViewport();
 });
+
+test("outils de pose à usage unique, marquage enchaînable", async ({ page }) => {
+  await start(page);
+  const bar = page.getByRole("toolbar", { name: "Outils d’annotation" });
+  const box = (await page.locator(".page[data-page='0']").boundingBox())!;
+  const k = box.width / 595.28;
+  await page.keyboard.press("c");
+  await page.mouse.click(box.x + 200, box.y + 400);
+  await expect(bar.getByRole("button", { name: "Sélection de texte (V)" })).toHaveAttribute("aria-pressed", "true");
+  // Clic ailleurs : valide (désélection) sans poser de nouvelle case.
+  await page.mouse.click(box.x + 300, box.y + 500);
+  await expect.poll(async () => (await model(page)).filter((a) => a.body.type === "check").length).toBe(1);
+  await expect(page.locator(".page[data-page='0'] .hd")).toHaveCount(0);
+
+  await page.keyboard.press("r");
+  await drag(page, [300, 300], [400, 360]);
+  await expect(bar.getByRole("button", { name: "Sélection de texte (V)" })).toHaveAttribute("aria-pressed", "true");
+
+  // Surligner reste actif ; un simple clic ne crée rien.
+  await page.keyboard.press("h");
+  await page.mouse.click(box.x + 90 * k, box.y + 102 * k);
+  await drag(page, [80 * k, 102 * k], [200 * k, 102 * k]);
+  await expect(bar.getByRole("button", { name: "Surligner (H)" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(async () => (await model(page)).filter((a) => a.body.type === "highlight" && a.page === 0).length).toBe(1);
+});

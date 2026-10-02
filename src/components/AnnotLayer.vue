@@ -60,7 +60,13 @@ function newAnnot(rect: Rect, body: AnnotBody, extra: Partial<Annot> = {}): Anno
   };
 }
 
+/**
+ * Ajoute l'annotation et la sélectionne. Les outils de pose (zone de texte, note, formes,
+ * coches, caviardage, image) sont à usage unique : retour à la sélection, un clic ailleurs
+ * valide sans rien poser. Surligner, souligner et barrer restent actifs pour enchaîner.
+ */
 async function create(a: Annot) {
+  if (!isMarkup(tools.tool)) tools.tool = "select";
   await tabs.addAnnot(props.tab, a);
   props.tab.selected = a.id;
 }
@@ -151,6 +157,8 @@ async function onLayerUp() {
   const tool = tools.tool;
   const r = rectFrom(d.start, d.cur);
   if (isMarkup(tool)) {
+    // Simple clic sans glisser : rien (évite un marquage d'un seul caractère).
+    if (!d.moved) return;
     let rects = d.rects;
     if (!rects.length) {
       try {
