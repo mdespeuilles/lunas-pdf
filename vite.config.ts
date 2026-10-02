@@ -27,6 +27,10 @@ function noStoreInDev(): Plugin {
 export default defineConfig(({ mode }) => ({
   plugins: [vue(), noStoreInDev()],
   clearScreen: false,
+  // Cache des dépendances propre au mode e2e : partagé, il était invalidé à chaque passage
+  // des tests, et le lancement suivant de `tauri dev` repartait sur une ré-optimisation
+  // (anciens fragments réclamés par la webview, page blanche).
+  cacheDir: mode === "e2e" ? "node_modules/.vite-e2e" : "node_modules/.vite",
   server: { port: 1420, strictPort: true, watch: { ignored: ["**/src-tauri/**", "**/target/**"] } },
   envPrefix: ["VITE_", "TAURI_ENV_"],
   resolve: {

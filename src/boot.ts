@@ -8,14 +8,41 @@ export function bootLog(message: string) {
   void internals.invoke("log_frontend_error", { message }).catch(() => {});
 }
 
+/**
+ * Développement : si le module principal échoue (dépendances que Vite ré-optimise au même
+ * moment), on recharge une fois plutôt que de laisser la fenêtre blanche.
+ */
+function reloadOnce(el: HTMLElement) {
+  if (!import.meta.env.DEV || el.tagName !== "SCRIPT") return;
+  try {
+    if (sessionStorage.getItem("feuillet-reloaded")) return;
+    sessionStorage.setItem("feuillet-reloaded", "1");
+  } catch {
+    return;
+  }
+  bootLog("rechargement de l'interface");
+  setTimeout(() => location.reload(), 500);
+}
+
+/** Interface montée : un prochain échec pourra de nouveau recharger. */
+export function bootDone() {
+  try {
+    sessionStorage.removeItem("feuillet-reloaded");
+  } catch {
+    // stockage indisponible
+  }
+}
+
 bootLog(`démarrage : page chargée (${navigator.userAgent.match(/AppleWebKit\/[\d.]+/)?.[0] ?? "?"})`);
 window.addEventListener(
   "error",
   (e) => {
     // Échec de chargement d'une ressource (script, style) : pas de message, mais une cible.
     const el = e.target as (HTMLElement & { src?: string; href?: string }) | null;
-    if (el && el !== (window as unknown) && (el.src || el.href)) bootLog(`ressource introuvable : ${el.src || el.href}`);
-    else bootLog(`erreur : ${e.message} (${e.filename}:${e.lineno}:${e.colno})`);
+    if (el && el !== (window as unknown) && (el.src || el.href)) {
+      bootLog(`ressource introuvable : ${el.src || el.href}`);
+      reloadOnce(el);
+    } else bootLog(`erreur : ${e.message} (${e.filename}:${e.lineno}:${e.colno})`);
   },
   true,
 );
