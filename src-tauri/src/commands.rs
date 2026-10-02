@@ -322,5 +322,5 @@ pub fn take_pending_files(pending: State<'_, PendingFiles>) -> Vec<String> {
 #[tauri::command]
 #[specta::specta]
 pub fn log_frontend_error(message: String) {
-    eprintln!("[feuillet] erreur de l'interface : {message}");
+    eprintln!("[feuillet] interface : {message}");
 }

@@ -18,6 +18,7 @@ import { useRecents } from "./stores/recents";
 import { useSettings } from "./stores/settings";
 import { useTabs } from "./stores/tabs";
 import { useUi } from "./stores/ui";
+import { bootLog } from "./boot";
 
 const { t } = useI18n();
 const tabs = useTabs();
@@ -32,6 +33,7 @@ useShortcuts(() => (tabs.activeKey ? readers.value[tabs.activeKey] : undefined))
 onMounted(async () => {
   await settings.load();
   await appWindow.show();
+  bootLog("démarrage : fenêtre affichée par l'interface");
   await appWindow.onCloseRequested(confirmQuit);
   await onFileDrop((e) => {
     if (e.type === "drop") {
