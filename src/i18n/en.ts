@@ -4,7 +4,7 @@ const en: Messages = {
   titlebar: {
     home: "Home",
     closeTab: "Close tab (Ctrl W)",
-    openDoc: "Open a document (Ctrl O)",
+    newTab: "New tab (Ctrl T)",
     mainMenu: "Main menu",
     minimize: "Minimize",
     maximize: "Maximize",

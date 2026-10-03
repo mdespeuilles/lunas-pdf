@@ -3,7 +3,7 @@ const fr = {
   titlebar: {
     home: "Accueil",
     closeTab: "Fermer l’onglet (Ctrl W)",
-    openDoc: "Ouvrir un document (Ctrl O)",
+    newTab: "Nouvel onglet (Ctrl T)",
     mainMenu: "Menu principal",
     minimize: "Réduire",
     maximize: "Agrandir",

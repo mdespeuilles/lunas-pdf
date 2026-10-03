@@ -77,6 +77,9 @@ export interface DocTab {
   scroll?: { top: number; left: number };
 }
 
+/** Clé de l'onglet Accueil (jamais celle d'un document : « t1 », « t2 »…). */
+export const HOME_KEY = "home";
+
 let nextKey = 1;
 let nextSearchId = 1;
 let navSeq = 1;
@@ -89,6 +92,20 @@ export const useTabs = defineStore("tabs", () => {
   const tabs = ref<DocTab[]>([]);
   const activeKey = ref<string | null>(null);
   const active = computed(() => tabs.value.find((t) => t.key === activeKey.value) ?? null);
+  /** Onglet Accueil ouvert à côté des documents (bouton « + », Ctrl T). */
+  const homeOpen = ref(false);
+  /** L'accueil est affiché : aucun document, ou onglet Accueil actif. */
+  const homeActive = computed(() => !tabs.value.length || activeKey.value === HOME_KEY);
+
+  function openHome() {
+    homeOpen.value = true;
+    activeKey.value = HOME_KEY;
+  }
+
+  function closeHome() {
+    homeOpen.value = false;
+    if (activeKey.value === HOME_KEY) activeKey.value = tabs.value.at(-1)?.key ?? null;
+  }
   const settings = useSettings();
 
   function newTab(path: string): DocTab {
@@ -181,7 +198,11 @@ export const useTabs = defineStore("tabs", () => {
       last = tab;
       void load(tabs.value.at(-1)!);
     }
-    if (last && activate) activeKey.value = last.key;
+    if (last && activate) {
+      // Document ouvert depuis l'onglet Accueil : il le remplace (comme un navigateur).
+      if (activeKey.value === HOME_KEY) homeOpen.value = false;
+      activeKey.value = last.key;
+    }
     return last;
   }
 
@@ -200,12 +221,15 @@ export const useTabs = defineStore("tabs", () => {
       dropDocData(tab.info.id);
     }
     if (activeKey.value === key) activeKey.value = tabs.value[Math.min(i, tabs.value.length - 1)]?.key ?? null;
+    if (!tabs.value.length) homeOpen.value = false;
   }
 
   function cycle(dir: 1 | -1) {
     if (!tabs.value.length) return;
-    const i = tabs.value.findIndex((t) => t.key === activeKey.value);
-    activeKey.value = tabs.value[(i + dir + tabs.value.length) % tabs.value.length].key;
+    // Ordre de la barre : documents, puis l'onglet Accueil s'il est ouvert.
+    const keys = [...tabs.value.map((t) => t.key), ...(homeOpen.value ? [HOME_KEY] : [])];
+    const i = keys.indexOf(activeKey.value ?? "");
+    activeKey.value = keys[(i + dir + keys.length) % keys.length];
   }
 
   // --- Navigation et vue -------------------------------------------------------------------
@@ -420,6 +444,10 @@ export const useTabs = defineStore("tabs", () => {
     tabs,
     activeKey,
     active,
+    homeOpen,
+    homeActive,
+    openHome,
+    closeHome,
     openPaths,
     unlock,
     close,

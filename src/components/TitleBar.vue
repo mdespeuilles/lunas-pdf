@@ -6,8 +6,7 @@ import { useI18n } from "vue-i18n";
 import AppMenu from "./AppMenu.vue";
 import { appWindow, nativeTrafficLights } from "../lib/window";
 import { useSettings } from "../stores/settings";
-import { useTabs } from "../stores/tabs";
-import { openFromDialog } from "../composables/open";
+import { HOME_KEY, useTabs } from "../stores/tabs";
 import { confirmQuit, requestClose } from "../composables/save";
 import { pageDrag } from "../composables/page-drag";
 
@@ -65,12 +64,30 @@ function onTabMouseDown(e: MouseEvent, key: string) {
           <X class="ic xs" aria-hidden="true" />
         </button>
       </div>
-      <button class="cl add" :aria-label="t('titlebar.openDoc')" :title="t('titlebar.openDoc')" @click="openFromDialog()">
+      <!-- Onglet Accueil ouvert à côté des documents (bouton « + »). -->
+      <div
+        v-if="tabs.tabs.length && tabs.homeOpen"
+        class="tab"
+        :class="{ on: tabs.activeKey === HOME_KEY }"
+        role="tab"
+        :aria-selected="tabs.activeKey === HOME_KEY"
+        tabindex="0"
+        @click="tabs.activeKey = HOME_KEY"
+        @keydown.enter="tabs.activeKey = HOME_KEY"
+        @mousedown="$event.button === 1 && ($event.preventDefault(), tabs.closeHome())"
+      >
+        <Home class="ic s" aria-hidden="true" />
+        <span class="nm">{{ t("titlebar.home") }}</span>
+        <button class="cl" :aria-label="t('titlebar.closeTab')" @click.stop="tabs.closeHome()">
+          <X class="ic xs" aria-hidden="true" />
+        </button>
+      </div>
+      <button class="cl add" :aria-label="t('titlebar.newTab')" :title="t('titlebar.newTab')" @click="tabs.openHome()">
         <Plus class="ic s" aria-hidden="true" />
       </button>
     </div>
     <div class="drag" data-tauri-drag-region />
-    <AppMenu v-if="!tabs.tabs.length" variant="main" />
+    <AppMenu v-if="tabs.homeActive" variant="main" />
     <div v-if="settings.settings.windowControls && !nativeTrafficLights" class="wctl">
       <button class="wbtn" :aria-label="t('titlebar.minimize')" :title="t('titlebar.minimize')" @click="appWindow.minimize()">
         <svg class="wic" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5.5h10" /></svg>

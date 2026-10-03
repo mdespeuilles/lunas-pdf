@@ -43,9 +43,10 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
 
     // Application
     if (ctrl && !e.shiftKey && key === "o") return run(e, () => openFromDialog());
+    if (ctrl && !e.shiftKey && key === "t") return run(e, () => tabs.openHome());
     if (ctrl && key === ",") return run(e, () => (ui.prefsOpen = true));
     if (modal) return;
-    if (ctrl && key === "w") return run(e, () => tabs.active && requestClose(tabs.active));
+    if (ctrl && key === "w") return run(e, () => (tabs.active ? requestClose(tabs.active) : tabs.closeHome()));
     if (ctrl && (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp"))
       return run(e, () => tabs.cycle(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1));
 

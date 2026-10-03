@@ -70,14 +70,14 @@ onMounted(async () => {
 
 // Les récents se mettent à jour à la fermeture du dernier onglet.
 tabs.$onAction(({ name, after }) => {
-  if (name === "close" || name === "openPaths") after(() => !tabs.tabs.length && recents.refresh());
+  if (name === "close" || name === "openPaths" || name === "openHome") after(() => tabs.homeActive && recents.refresh());
 });
 </script>
 
 <template>
   <div class="app">
     <TitleBar />
-    <HomeView v-if="!tabs.tabs.length" :dragging="dragging" />
+    <HomeView v-if="tabs.homeActive" :dragging="dragging" />
     <ReaderView
       v-for="tab in tabs.tabs"
       v-show="tab.key === tabs.activeKey"
@@ -85,7 +85,7 @@ tabs.$onAction(({ name, after }) => {
       :ref="(el) => { if (el) readers[tab.key] = el as InstanceType<typeof ReaderView>; else delete readers[tab.key]; }"
       :tab="tab"
     />
-    <div v-if="dragging && tabs.tabs.length" class="drop-over" aria-hidden="true">
+    <div v-if="dragging && !tabs.homeActive" class="drop-over" aria-hidden="true">
       <div class="drop-card"><Upload class="ic xl" />{{ t("drop.overlay") }}</div>
     </div>
     <PreferencesDialog v-if="ui.prefsOpen" />
