@@ -6,7 +6,7 @@ import AboutDialog from "./components/AboutDialog.vue";
 import AskDialog from "./components/AskDialog.vue";
 import ExportDialog from "./components/ExportDialog.vue";
 import PageDragGhost from "./components/PageDragGhost.vue";
-import { fileDrop, thumbsTarget } from "./composables/page-drag";
+import { fileDrop, sideDrop, sideTarget, thumbsTarget } from "./composables/page-drag";
 import { insertFiles } from "./composables/insert-files";
 import SignatureDialog from "./components/SignatureDialog.vue";
 import SignaturePicker from "./components/SignaturePicker.vue";
@@ -18,7 +18,7 @@ import TitleBar from "./components/TitleBar.vue";
 import { events } from "./bindings";
 import { commands, inTauri } from "./lib/api";
 import { appWindow, onFileDrop } from "./lib/window";
-import { openPaths } from "./composables/open";
+import { openBeside, openPaths } from "./composables/open";
 import { confirmQuit } from "./composables/save";
 import { useShortcuts } from "./composables/shortcuts";
 import { useAi } from "./stores/ai";
@@ -48,14 +48,19 @@ onMounted(async () => {
   await onFileDrop((e) => {
     // Au-dessus des miniatures : les pages des fichiers sont insérées à cet endroit.
     const target = e.type === "leave" ? null : thumbsTarget(e.x, e.y);
+    // Au-dessus de la zone « Ajouter un document à côté » : le PDF s'ouvre à côté.
+    const side = e.type === "leave" || target ? null : sideTarget(e.x, e.y);
     if (e.type === "drop") {
       dragging.value = false;
       fileDrop.value = null;
+      sideDrop.value = null;
       if (target) void insertFiles(target.tab, e.paths, target.at);
+      else if (side) void openBeside(side, e.paths);
       else openPaths(e.paths);
     } else {
       fileDrop.value = target;
-      dragging.value = e.type !== "leave" && !target;
+      sideDrop.value = side?.key ?? null;
+      dragging.value = e.type !== "leave" && !target && !side;
     }
   });
   if (inTauri || "__LUNAS_PDF_E2E__" in window) {

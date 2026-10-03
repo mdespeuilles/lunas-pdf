@@ -82,7 +82,7 @@ test("glisser-déposer pour réordonner, Terminé revient à la lecture", async 
 
 test("côte à côte : copier des pages d'un document à l'autre, extraire", async ({ page }) => {
   await open(page, "/docs/contrat.pdf", { sidePath: "/docs/formulaire.pdf", extractPath: "/docs/extrait.pdf" });
-  await page.getByRole("button", { name: "Côte à côte" }).click();
+  await page.getByRole("button", { name: "Document à côté" }).click();
   await expect(grid(page, "formulaire.pdf").getByRole("option")).toHaveCount(2);
   await dragBefore(page, thumb(page, 1, "formulaire.pdf"), thumb(page, 2), async (p) => {
     await expect(p.locator(".dpill")).toHaveText("Copier avant la page 2");
@@ -110,4 +110,30 @@ test("document signé : avertissement avant de réorganiser", async ({ page }) =
   await expect(dlg).toBeVisible();
   await dlg.getByRole("button", { name: "Réorganiser quand même" }).click();
   await expect.poll(() => order(page, "/docs/signe.pdf")).toEqual(["1", "2@90"]);
+});
+
+test("invitation au côte à côte : document ouvert ou fichier, puis retour à un seul document", async ({ page }) => {
+  await open(page, "/docs/contrat.pdf", { sidePath: "/docs/formulaire.pdf" });
+  const invite = page.getByRole("complementary", { name: "Ajouter un document à côté" });
+  await expect(invite).toBeVisible();
+  await expect(invite).toContainText("Glissez des pages d’un PDF à l’autre");
+  await invite.getByRole("button", { name: "Ouvrir un fichier…" }).click();
+  await expect(grid(page, "formulaire.pdf").getByRole("option")).toHaveCount(2);
+  await expect(invite).toHaveCount(0);
+
+  // Fermé : l'invitation revient et propose le document déjà ouvert, en un clic.
+  await page.getByRole("button", { name: "Fermer", exact: true }).click();
+  await expect(invite.getByRole("button", { name: "formulaire.pdf" })).toBeVisible();
+  await invite.getByRole("button", { name: "formulaire.pdf" }).click();
+  await expect(grid(page, "formulaire.pdf").getByRole("option")).toHaveCount(2);
+
+  // Un PDF déposé sur l'invitation s'ouvre à côté (et non dans un onglet à part entière).
+  await page.getByRole("button", { name: "Fermer", exact: true }).click();
+  const box = (await invite.boundingBox())!;
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.evaluate((p) => (window as any).__LUNAS_PDF_E2E__.emitFileDrop({ type: "over", ...p }), at);
+  await expect(invite).toHaveClass(/over/);
+  await page.evaluate((p) => (window as any).__LUNAS_PDF_E2E__.emitFileDrop({ type: "drop", paths: ["/docs/signe.pdf"], ...p }), at);
+  await expect(grid(page, "signe.pdf").getByRole("option")).not.toHaveCount(0);
+  await expect(page.getByRole("toolbar", { name: "Organiser les pages" })).toBeVisible();
 });

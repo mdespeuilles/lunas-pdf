@@ -1,13 +1,15 @@
 <script setup lang="ts">
 // « Organiser les pages » (planche 08) : barre d'actions, grille, côte à côte, glisser-déposer
 // (déplacement dans un document, copie d'un document à l'autre).
-import { ArrowLeft, Columns2, Copy, FilePlus2, FileOutput, ImageMinus, ImagePlus, RotateCcw, RotateCw, Square, Trash2 } from "lucide-vue-next";
+import { ArrowLeft, ChevronDown, Columns2, Copy, FilePlus2, FileOutput, FileText, FolderOpen, ImageMinus, ImagePlus, RotateCcw, RotateCw, Square, Trash2 } from "lucide-vue-next";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Dropdown from "./Dropdown.vue";
 import PageGrid from "./PageGrid.vue";
 import ThumbCanvas from "./ThumbCanvas.vue";
 import { useOrganize } from "../composables/organize";
+import { openBeside } from "../composables/open";
+import { sideDrop } from "../composables/page-drag";
 import { isNoop } from "../lib/page-order";
 import { pickPdfFiles } from "../lib/window";
 import { type DocTab, useTabs } from "../stores/tabs";
@@ -48,9 +50,7 @@ async function showSide(key: string | null) {
 async function openSide() {
   const e2e = (window as unknown as { __LUNAS_PDF_E2E__?: { sidePath?: string } }).__LUNAS_PDF_E2E__;
   const paths = e2e ? (e2e.sidePath ? [e2e.sidePath] : []) : await pickPdfFiles(t("organize.openSide"));
-  if (!paths.length) return;
-  const opened = await tabs.openPaths(paths.slice(0, 1), false);
-  if (opened && opened.key !== props.tab.key) props.tab.orgSide = opened.key;
+  if (paths.length) await openBeside(props.tab, paths);
 }
 
 // --- Sélection et glisser-déposer -------------------------------------------------------------
@@ -201,8 +201,8 @@ const selCount = computed(() => active.value.orgSel.length);
         <button :class="{ on: !side }" :aria-pressed="!side" :aria-label="t('organize.single')" :title="t('organize.single')" @click="showSide(null)"><Square class="ic s" aria-hidden="true" /></button>
         <Dropdown align="right" :width="260">
           <template #trigger="{ toggle }">
-            <button :class="{ on: !!side }" :aria-pressed="!!side" aria-haspopup="menu" @click="others.length ? toggle(true) : openSide()">
-              <Columns2 class="ic s" aria-hidden="true" />{{ t("organize.sideBySide") }}
+            <button class="sidebtn" :class="{ on: !!side }" :aria-pressed="!!side" aria-haspopup="menu" @click="others.length ? toggle(true) : openSide()">
+              <Columns2 class="ic s" aria-hidden="true" />{{ t("organize.sideBySide") }}<ChevronDown class="ic xs chev" aria-hidden="true" />
             </button>
           </template>
           <button v-for="o in others" :key="o.key" class="mi" role="menuitem" :class="{ on: side?.key === o.key }" @click="showSide(o.key)">{{ o.name }}</button>
@@ -217,6 +217,21 @@ const selCount = computed(() => active.value.orgSel.length);
         <div class="paneh"><b>{{ tab.name }}</b><span>· {{ t("organize.pageCount", { n: tab.info?.pages.length ?? 0 }, tab.info?.pages.length ?? 0) }}</span></div>
         <PageGrid :tab="tab" :size="size" :drop-at="dropAt(tab)" :dragging="draggingIn(tab)" @press="(i, e) => onPress(tab, i, e)" @open="(i) => openPage(tab, i)" @focus-pane="activeKey = tab.key" />
       </section>
+      <!-- Invitation au côte à côte, dans l'espace libre (disparaît dès qu'un document est à côté). -->
+      <aside v-if="!side" class="invite" :class="{ over: sideDrop === tab.key }" :data-side-drop="tab.key" :aria-label="t('organize.inviteTitle')">
+        <div class="card">
+          <span class="lic"><Columns2 class="ic l" aria-hidden="true" /></span>
+          <b>{{ t("organize.inviteTitle") }}</b>
+          <p>{{ t("organize.inviteText") }}</p>
+          <div class="choices">
+            <button v-for="o in others" :key="o.key" class="btn out" :title="o.path" @click="showSide(o.key)">
+              <FileText class="ic s" aria-hidden="true" /><span class="nm">{{ o.name }}</span>
+            </button>
+            <button class="btn pri" @click="openSide"><FolderOpen class="ic s" aria-hidden="true" />{{ t("organize.inviteOpen") }}</button>
+          </div>
+          <span class="drop">{{ t("organize.inviteDrop") }}</span>
+        </div>
+      </aside>
       <template v-if="side">
         <div class="divider"><span /></div>
         <section class="pane r" :class="{ act: activeKey === side.key }" :aria-label="side.name">
@@ -264,6 +279,23 @@ const selCount = computed(() => active.value.orgSel.length);
 .gp { position: absolute; left: 0; top: 0; background: #fff; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0, 0, 0, .1), 0 18px 40px rgba(0, 0, 0, .28); }
 .cnt { position: absolute; top: -10px; left: 60px; display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box; border-radius: 12px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; box-shadow: 0 0 0 2px #fff; }
 .dpill { position: absolute; left: -6px; top: 118px; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: var(--tip-bg); color: var(--tip-fg); font-size: 12px; white-space: nowrap; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); }
+/* Bouton dans le menu déroulant : hors de `.seg > button`, styles repris ici. */
+.sidebtn { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px 0 9px; border-radius: 7px; border: 0; background: transparent; color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+.sidebtn:hover { color: var(--text); }
+.chev { opacity: .7; }
+.invite { width: 320px; flex: none; display: flex; overflow-y: auto; padding: 24px; background: var(--canvas); }
+/* Centrée verticalement sans jamais déborder (fenêtre basse : la zone défile). */
+.invite .card { margin: auto 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 22px; border-radius: 14px; border: 1.5px dashed var(--line-2); text-align: center; transition: border-color .15s, background .15s; }
+.invite.over .card { border-color: var(--accent); background: var(--accent-soft); }
+.invite .lic { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-text); margin-bottom: 4px; }
+.invite b { font-size: 14px; font-weight: 600; color: var(--text); }
+.invite p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.invite .choices { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.invite .choices .btn { width: 100%; justify-content: flex-start; min-width: 0; }
+.invite .choices .btn.pri { justify-content: center; }
+.invite .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invite .drop { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+@media (max-width: 900px) { .invite { display: none; } }
 .mi { display: flex; align-items: center; width: 100%; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-size: 13px; color: var(--text); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mi:hover, .mi:focus-visible, .mi.on { background: var(--hover); outline: none; }
 .msep { height: 1px; background: var(--line); margin: 5px 4px; }

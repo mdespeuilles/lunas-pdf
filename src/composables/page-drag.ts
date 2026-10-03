@@ -25,6 +25,15 @@ export const pageDrag = ref<DragState | null>(null);
 /** Fichiers PDF glissés depuis le gestionnaire de fichiers au-dessus des miniatures. */
 export const fileDrop = ref<DropTarget | null>(null);
 
+/** Fichier glissé au-dessus de la zone « Ajouter un document à côté » (mode Organiser) : onglet organisé. */
+export const sideDrop = ref<string | null>(null);
+
+/** Onglet dont la zone « Ajouter un document à côté » est sous (x, y), s'il y en a. */
+export function sideTarget(x: number, y: number): DocTab | null {
+  const el = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>("[data-side-drop]");
+  return el ? useTabs().tabs.find((t) => t.key === el.dataset.sideDrop) ?? null : null;
+}
+
 /** Point d'insertion dans les miniatures sous (x, y), s'il y en a. */
 export function thumbsTarget(x: number, y: number): DropTarget | null {
   const tabs = useTabs();
