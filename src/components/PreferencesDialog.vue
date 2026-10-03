@@ -5,6 +5,7 @@ import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { TrustedRoot } from "../bindings";
 import { commands, inTauri, unwrap } from "../lib/api";
+import { nativeTrafficLights } from "../lib/window";
 import { useTabs } from "../stores/tabs";
 import Modal from "./Modal.vue";
 import { ACCENTS, useSettings } from "../stores/settings";
@@ -78,7 +79,7 @@ async function untrust(r: TrustedRoot) {
         @change="settings.update({ authorName: ($event.target as HTMLInputElement).value.trim() })"
       />
     </div>
-    <label class="field check">
+    <label v-if="!nativeTrafficLights" class="field check">
       <input type="checkbox" class="sr-only" :checked="settings.settings.windowControls" @change="settings.update({ windowControls: ($event.target as HTMLInputElement).checked })" />
       <span class="cb" :class="{ on: settings.settings.windowControls }" aria-hidden="true">
         <Check v-if="settings.settings.windowControls" class="ic xs" />

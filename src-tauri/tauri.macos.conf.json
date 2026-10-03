@@ -1,1 +1,29 @@
-{ "bundle": { "resources": { "pdfium/lib/libpdfium.dylib": "pdfium/libpdfium.dylib", "pdfium/LICENSE": "pdfium/LICENSE" } } }
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Lunas PDF",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 720,
+        "minHeight": 480,
+        "decorations": true,
+        "dragDropEnabled": true,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 21
+        }
+      }
+    ]
+  },
+  "bundle": {
+    "resources": {
+      "pdfium/lib/libpdfium.dylib": "pdfium/libpdfium.dylib",
+      "pdfium/LICENSE": "pdfium/LICENSE"
+    }
+  }
+}

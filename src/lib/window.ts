@@ -1,6 +1,9 @@
 // Fenêtre, dialogues et ouverture de liens (inactifs hors Tauri).
 import { inTauri } from "./api";
 
+/** macOS : boutons de fenêtre natifs (feux tricolores) dessinés par-dessus la barre de titre. */
+export const nativeTrafficLights = inTauri && /Macintosh/.test(navigator.userAgent);
+
 async function win() {
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   return getCurrentWindow();

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // Barre de titre personnalisée (planches 01/02) : onglets, région de déplacement, boutons de fenêtre.
-import { FileText, Home, Lock, Maximize2, Minus, Plus, Square, X } from "lucide-vue-next";
+import { FileText, Home, Lock, Plus, X } from "lucide-vue-next";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppMenu from "./AppMenu.vue";
-import { appWindow } from "../lib/window";
+import { appWindow, nativeTrafficLights } from "../lib/window";
 import { useSettings } from "../stores/settings";
 import { useTabs } from "../stores/tabs";
 import { openFromDialog } from "../composables/open";
@@ -37,7 +37,7 @@ function onTabMouseDown(e: MouseEvent, key: string) {
 </script>
 
 <template>
-  <header class="titlebar" data-tauri-drag-region>
+  <header class="titlebar" :class="{ mac: nativeTrafficLights }" data-tauri-drag-region>
     <div class="tabs" role="tablist" :aria-label="t('titlebar.home')">
       <div v-if="!tabs.tabs.length" class="tab on" role="tab" aria-selected="true">
         <Home class="ic s" aria-hidden="true" />
@@ -71,9 +71,9 @@ function onTabMouseDown(e: MouseEvent, key: string) {
     </div>
     <div class="drag" data-tauri-drag-region />
     <AppMenu v-if="!tabs.tabs.length" variant="main" />
-    <div v-if="settings.settings.windowControls" class="wctl">
+    <div v-if="settings.settings.windowControls && !nativeTrafficLights" class="wctl">
       <button class="wbtn" :aria-label="t('titlebar.minimize')" :title="t('titlebar.minimize')" @click="appWindow.minimize()">
-        <Minus class="ic xs" aria-hidden="true" />
+        <svg class="wic" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5.5h10" /></svg>
       </button>
       <button
         class="wbtn"
@@ -81,11 +81,11 @@ function onTabMouseDown(e: MouseEvent, key: string) {
         :title="maximized ? t('titlebar.restore') : t('titlebar.maximize')"
         @click="appWindow.toggleMaximize()"
       >
-        <Maximize2 v-if="maximized" class="ic xs" aria-hidden="true" />
-        <Square v-else class="ic xs" aria-hidden="true" />
+        <svg v-if="maximized" class="wic" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5V.5h7v7h-2M.5 2.5h7v7h-7z" /></svg>
+        <svg v-else class="wic" viewBox="0 0 10 10" aria-hidden="true"><path d="M.5 .5h9v9h-9z" /></svg>
       </button>
       <button class="wbtn close" :aria-label="t('titlebar.closeWindow')" :title="t('titlebar.closeWindow')" @click="quit">
-        <X class="ic xs" aria-hidden="true" />
+        <svg class="wic" viewBox="0 0 10 10" aria-hidden="true"><path d="M.5 .5l9 9M9.5 .5l-9 9" /></svg>
       </button>
     </div>
   </header>
@@ -108,8 +108,13 @@ function onTabMouseDown(e: MouseEvent, key: string) {
 .tab:hover .dirty + .cl { display: grid; }
 .add { width: 30px; height: 30px; border-radius: 8px; }
 .drag { flex: 1; align-self: stretch; }
-.wctl { display: flex; gap: 10px; padding-left: 8px; }
-.wbtn { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--hover); color: var(--text-2); border: 0; padding: 0; }
-.wbtn:hover { background: var(--press); color: var(--text); }
+/* Place des feux tricolores natifs de macOS. */
+.titlebar.mac { padding-left: 92px; }
+.wctl { display: flex; gap: 2px; padding-left: 8px; }
+.wbtn { width: 36px; height: 30px; border-radius: 6px; display: grid; place-items: center; background: none; color: var(--text-2); border: 0; padding: 0; }
+.wbtn:hover { background: var(--hover); color: var(--text); }
+.wbtn:active { background: var(--press); }
 .wbtn.close:hover { background: var(--bad); color: #fff; }
+.wic { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1; shape-rendering: crispEdges; }
+.wbtn.close .wic { shape-rendering: geometricPrecision; }
 </style>
