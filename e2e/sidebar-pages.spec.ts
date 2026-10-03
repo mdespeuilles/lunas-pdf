@@ -3,7 +3,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 async function open(page: Page, paths: string[], extra: Record<string, unknown> = {}) {
   await page.addInitScript(
     ([p, x]) => {
-      (window as unknown as Record<string, unknown>).__FEUILLET_E2E__ = { pending: p, ...x };
+      (window as unknown as Record<string, unknown>).__LUNAS_PDF_E2E__ = { pending: p, ...x };
     },
     [paths, extra] as const,
   );
@@ -11,7 +11,7 @@ async function open(page: Page, paths: string[], extra: Record<string, unknown> 
   for (const p of paths) await expect(page.getByRole("tab", { name: new RegExp(p.split("/").pop()!.replace(".", "\\.")) })).toBeVisible();
 }
 
-const order = (page: Page, path = "/docs/contrat.pdf") => page.evaluate((p) => ((window as any).__FEUILLET_E2E__.pages?.[p] ?? []) as string[], path);
+const order = (page: Page, path = "/docs/contrat.pdf") => page.evaluate((p) => ((window as any).__LUNAS_PDF_E2E__.pages?.[p] ?? []) as string[], path);
 const thumbs = (page: Page) => page.locator("[data-thumbs]:visible");
 const thumb = (page: Page, n: number) => thumbs(page).getByRole("button", { name: `Page ${n}`, exact: true });
 
@@ -80,9 +80,9 @@ test("glisser une page vers un autre onglet (survol de l'onglet), déposer un fi
   // Fichier PDF déposé sur les miniatures : ses pages sont insérées à cet endroit.
   const t2 = (await thumb(page, 2).boundingBox())!;
   const at = { x: t2.x + t2.width / 2, y: t2.y + t2.height * 0.75 };
-  await page.evaluate((p) => (window as any).__FEUILLET_E2E__.emitFileDrop({ type: "over", ...p }), at);
+  await page.evaluate((p) => (window as any).__LUNAS_PDF_E2E__.emitFileDrop({ type: "over", ...p }), at);
   await expect(page.locator(".drop-line:visible")).toHaveCount(1);
-  await page.evaluate((p) => (window as any).__FEUILLET_E2E__.emitFileDrop({ type: "drop", paths: ["/docs/signe.pdf"], ...p }), at);
+  await page.evaluate((p) => (window as any).__LUNAS_PDF_E2E__.emitFileDrop({ type: "drop", paths: ["/docs/signe.pdf"], ...p }), at);
   await expect.poll(() => order(page, "/docs/formulaire.pdf")).toEqual(["contrat.pdf:2", "1", "signe.pdf:1", "signe.pdf:2", "2"]);
 });
 

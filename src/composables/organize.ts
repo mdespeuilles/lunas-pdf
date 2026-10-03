@@ -93,7 +93,7 @@ export function useOrganize() {
       const { save } = await import("@tauri-apps/plugin-dialog");
       path = await save({ defaultPath, filters: [{ name: "PDF", extensions: ["pdf"] }] });
     } else {
-      path = (window as unknown as { __FEUILLET_E2E__?: { extractPath?: string } }).__FEUILLET_E2E__?.extractPath ?? null;
+      path = (window as unknown as { __LUNAS_PDF_E2E__?: { extractPath?: string } }).__LUNAS_PDF_E2E__?.extractPath ?? null;
     }
     if (!path) return;
     try {

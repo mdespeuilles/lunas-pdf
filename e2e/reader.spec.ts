@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 /** Démarre l'app avec des fichiers « passés en ligne de commande ». */
 async function start(page: Page, pending: string[] = [], settings: Record<string, unknown> = {}) {
   await page.addInitScript(([p, s]) => {
-    (window as unknown as Record<string, unknown>).__FEUILLET_E2E__ = { pending: p, settings: s };
+    (window as unknown as Record<string, unknown>).__LUNAS_PDF_E2E__ = { pending: p, settings: s };
   }, [pending, settings] as const);
   await page.goto("/");
 }

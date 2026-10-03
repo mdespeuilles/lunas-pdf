@@ -25,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob: feuillet: http://feuillet.localhost; connect-src 'self' ipc: http://ipc.localhost feuillet: http://feuillet.localhost; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob: lunas-pdf: http://lunas-pdf.localhost; connect-src 'self' ipc: http://ipc.localhost lunas-pdf: http://lunas-pdf.localhost; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {
@@ -62,11 +62,11 @@
     "linux": {
       "deb": {
         "depends": [],
-        "desktopTemplate": "feuillet.desktop"
+        "desktopTemplate": "lunas-pdf.desktop"
       },
       "rpm": {
         "depends": [],
-        "desktopTemplate": "feuillet.desktop"
+        "desktopTemplate": "lunas-pdf.desktop"
       }
     }
   }

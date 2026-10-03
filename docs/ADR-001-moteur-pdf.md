@@ -1,4 +1,4 @@
-# ADR-001 — Moteur PDF de Feuillet
+# ADR-001 — Moteur PDF de Lunas PDF
 
 - **Statut** : accepté (option 3), 2026-10-02
 - **Date** : 2026-10-02
@@ -7,7 +7,7 @@
 
 ## 1. Contexte
 
-Feuillet est une app Tauri 2 (Rust et webview Vue 3). Sous Linux, la webview est WebKitGTK 2.52.6 (webkit2gtk-4.1). L'app doit afficher vite des PDF longs ou scannés. Elle doit aussi écrire des annotations natives, remplir des AcroForm, enregistrer en incrémental sans casser les signatures, chiffrer et réorganiser des pages. Le tout sous licence permissive (MuPDF, AGPL, est exclu).
+Lunas PDF est une app Tauri 2 (Rust et webview Vue 3). Sous Linux, la webview est WebKitGTK 2.52.6 (webkit2gtk-4.1). L'app doit afficher vite des PDF longs ou scannés. Elle doit aussi écrire des annotations natives, remplir des AcroForm, enregistrer en incrémental sans casser les signatures, chiffrer et réorganiser des pages. Le tout sous licence permissive (MuPDF, AGPL, est exclu).
 
 ## 2. Options étudiées
 
@@ -15,7 +15,7 @@ Feuillet est une app Tauri 2 (Rust et webview Vue 3). Sous Linux, la webview est
 |---|---|---|---|
 | 1 | **pdf.js dans la webview** et manipulation en Rust (lopdf) | pdf.js (canvas, worker) | lopdf, ou `saveDocument()` de pdf.js |
 | 2 | **Tout PDFium** (`pdfium-render`) | PDFium, bitmaps envoyées à la webview | PDFium seul |
-| 3 | **PDFium en lecture et un « écrivain Feuillet » en Rust (lopdf)** | PDFium, bitmaps envoyées à la webview | lopdf pour annotations, formulaires, incrémental, chiffrement, signets ; PDFium seulement pour les passes destructives (caviardage, aplatissement) |
+| 3 | **PDFium en lecture et un « écrivain Lunas PDF » en Rust (lopdf)** | PDFium, bitmaps envoyées à la webview | lopdf pour annotations, formulaires, incrémental, chiffrement, signets ; PDFium seulement pour les passes destructives (caviardage, aplatissement) |
 | — | Exclues | MuPDF (AGPL-3.0, licence commerciale Artifex) ; hayro 0.7 (expérimental, sans texte ni annotations, performances non travaillées) ; pdf-rs 0.10 (écriture expérimentale) ; qpdf seul (aucune écriture incrémentale, issue #22) | |
 
 Versions vérifiées le 2026-10-02 :
@@ -113,18 +113,18 @@ Notes de 1 à 5, pondérées.
 
 ## 5. Décision proposée
 
-**Option 3 : PDFium pour lire, afficher, extraire et rechercher le texte, avec un « écrivain Feuillet » en Rust (lopdf) comme seule source des modifications.**
+**Option 3 : PDFium pour lire, afficher, extraire et rechercher le texte, avec un « écrivain Lunas PDF » en Rust (lopdf) comme seule source des modifications.**
 
 ### Architecture du moteur
 ```
 octets d'origine (jamais modifiés) ──► PDFium (fil dédié, lecture seule)
-        │                                ├─ rendu de pages et tuiles → protocole feuillet:// → <canvas>
+        │                                ├─ rendu de pages et tuiles → protocole lunas-pdf:// → <canvas>
         │                                ├─ texte, boîtes des caractères, recherche, liens, signets
         ▼                                └─ lecture des signatures et du type de formulaire
 journal de commandes (annuler / rétablir)
         │  annotations, valeurs de formulaire, opérations sur les pages
         ▼
-écrivain Feuillet (lopdf)
+écrivain Lunas PDF (lopdf)
   ├─ aperçu : révision incrémentale en mémoire, reconstruite à chaque commande → PDFium recharge les octets (≈ 0,2 ms)
   ├─ « Enregistrer », document signé : UNE révision incrémentale ajoutée à l'original
   ├─ « Enregistrer », document non signé ou pages réorganisées : réécriture complète
@@ -154,7 +154,7 @@ passes destructives sur les octets (enregistrement complet uniquement) : caviard
 | Distribution | Embarqué dans AppImage, deb et rpm (aucun paquet distro : seulement AUR) | Dans le bundle `.app`, à signer | À côté de l'exe, dans le msi |
 
 - **Option XFA/V8 écartée** : 44 Mio, alors que le cahier des charges demande seulement de signaler les formulaires XFA.
-- **Risque Linux identifié** : sur ce poste (GPU hybride NVIDIA, Wayland), WebKitGTK plante au démarrage avec « Error 71 (protocol error) dispatching to Wayland display ». `WEBKIT_DISABLE_DMABUF_RENDERER=1` corrige le problème. Feuillet devra le positionner automatiquement dans ce cas, avant de créer la webview, et le documenter.
+- **Risque Linux identifié** : sur ce poste (GPU hybride NVIDIA, Wayland), WebKitGTK plante au démarrage avec « Error 71 (protocol error) dispatching to Wayland display ». `WEBKIT_DISABLE_DMABUF_RENDERER=1` corrige le problème. Lunas PDF devra le positionner automatiquement dans ce cas, avant de créer la webview, et le documenter.
 
 ## 7. Conséquences
 

@@ -1,4 +1,4 @@
-// Métriques des polices standard 14 (identiques à crates/feuillet-core/src/fonts.rs) et
+// Métriques des polices standard 14 (identiques à crates/lunas-pdf-core/src/fonts.rs) et
 // coupure de lignes identique à `appearance::wrap` : l'éditeur de zone de texte mesure et
 // coupe exactement comme l'apparence PDF générée. Généré à partir de fonts.rs.
 import type { FontFamily } from "../bindings";

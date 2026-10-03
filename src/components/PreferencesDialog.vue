@@ -19,7 +19,7 @@ const tabs = useTabs();
 const trusted = ref<TrustedRoot[]>([]);
 const lists = ref<{ generated: number; eu: number; microsoft: number } | null>(null);
 onMounted(async () => {
-  if (!inTauri && !("__FEUILLET_E2E__" in window)) return;
+  if (!inTauri && !("__LUNAS_PDF_E2E__" in window)) return;
   trusted.value = await commands.listTrustedRoots();
   lists.value = await commands.trustListsInfo();
 });

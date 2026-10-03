@@ -390,7 +390,7 @@ export type RecentDoc = {
 	locked: boolean,
 	signed: boolean,
 	form: boolean,
-	/**  Identifiant de la miniature (servie par `feuillet://localhost/thumb/<id>.png`). */
+	/**  Identifiant de la miniature (servie par `lunas-pdf://localhost/thumb/<id>.png`). */
 	thumb: string | null,
 };
 

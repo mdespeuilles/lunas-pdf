@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 async function open(page: Page, path: string, extra: Record<string, unknown> = {}) {
   await page.addInitScript(
     ([p, x]) => {
-      (window as unknown as Record<string, unknown>).__FEUILLET_E2E__ = { pending: [p], ...x };
+      (window as unknown as Record<string, unknown>).__LUNAS_PDF_E2E__ = { pending: [p], ...x };
     },
     [path, extra] as const,
   );
@@ -25,8 +25,8 @@ async function annotate(page: Page) {
   await expect(page.getByRole("toolbar", { name: "Outils d’annotation" })).toBeVisible();
 }
 
-const model = (page: Page, path: string) => page.evaluate((p) => ((window as any).__FEUILLET_E2E__.saved[p] ?? []) as any[], path);
-const calls = (page: Page) => page.evaluate(() => (window as any).__FEUILLET_E2E__.calls as string[]);
+const model = (page: Page, path: string) => page.evaluate((p) => ((window as any).__LUNAS_PDF_E2E__.saved[p] ?? []) as any[], path);
+const calls = (page: Page) => page.evaluate(() => (window as any).__LUNAS_PDF_E2E__.calls as string[]);
 
 test.describe("Signatures numériques", () => {
   test("valide : bandeau, panneau de détails, copie", async ({ page }) => {

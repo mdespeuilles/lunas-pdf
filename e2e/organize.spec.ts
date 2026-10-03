@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 async function open(page: Page, path: string, extra: Record<string, unknown> = {}) {
   await page.addInitScript(
     ([p, x]) => {
-      (window as unknown as Record<string, unknown>).__FEUILLET_E2E__ = { pending: [p], ...x };
+      (window as unknown as Record<string, unknown>).__LUNAS_PDF_E2E__ = { pending: [p], ...x };
     },
     [path, extra] as const,
   );
@@ -13,8 +13,8 @@ async function open(page: Page, path: string, extra: Record<string, unknown> = {
   await expect(page.getByRole("toolbar", { name: "Organiser les pages" })).toBeVisible();
 }
 
-const order = (page: Page, path = "/docs/contrat.pdf") => page.evaluate((p) => ((window as any).__FEUILLET_E2E__.pages?.[p] ?? []) as string[], path);
-const calls = (page: Page) => page.evaluate(() => (window as any).__FEUILLET_E2E__.calls as string[]);
+const order = (page: Page, path = "/docs/contrat.pdf") => page.evaluate((p) => ((window as any).__LUNAS_PDF_E2E__.pages?.[p] ?? []) as string[], path);
+const calls = (page: Page) => page.evaluate(() => (window as any).__LUNAS_PDF_E2E__.calls as string[]);
 const grid = (page: Page, name = "contrat.pdf") => page.getByRole("listbox", { name: `Pages de ${name}` });
 const thumb = (page: Page, n: number, name = "contrat.pdf") => grid(page, name).getByRole("option", { name: `Page ${n}`, exact: true });
 

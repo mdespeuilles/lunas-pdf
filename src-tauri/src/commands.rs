@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use feuillet_core::{
+use lunas_pdf_core::{
     AnnotOp, DocId, DocInfo, EditRequest, EditState, Engine, Error, ImageInfo, LinkInfo, OutlineItem, PageText, Point,
     SearchEvent, TextSelection,
 };
@@ -106,7 +106,7 @@ pub async fn open_document(
             let mut recent = locked_recent(info.encrypted);
             recent.page_count = info.pages.len() as u32;
             recent.signed = info.signature_count > 0;
-            recent.form = info.form != feuillet_core::FormKind::None;
+            recent.form = info.form != lunas_pdf_core::FormKind::None;
             if !info.encrypted {
                 let (engine, id, dir) = (engine.inner().clone(), info.id, store.thumbs_dir.clone());
                 let thumb = path_id(&path);
@@ -173,7 +173,7 @@ pub async fn apply_annotations(engine: State<'_, Engine>, doc: DocId, ops: Vec<A
 /// copie depuis un autre document), en une étape d'annulation.
 #[tauri::command]
 #[specta::specta]
-pub async fn apply_pages(engine: State<'_, Engine>, doc: DocId, op: feuillet_core::pages::PageOp) -> Result<EditState> {
+pub async fn apply_pages(engine: State<'_, Engine>, doc: DocId, op: lunas_pdf_core::pages::PageOp) -> Result<EditState> {
     edit(&engine, doc, EditRequest::Pages(op)).await
 }
 
@@ -200,9 +200,9 @@ pub async fn clip_pages(engine: State<'_, Engine>, doc: DocId, pages: Vec<u32>) 
 pub async fn export_document(
     engine: State<'_, Engine>,
     doc: DocId,
-    opts: feuillet_core::export::ExportOptions,
+    opts: lunas_pdf_core::export::ExportOptions,
     path: String,
-) -> Result<feuillet_core::export::ExportResult> {
+) -> Result<lunas_pdf_core::export::ExportResult> {
     let e = engine.inner().clone();
     blocking(move || e.export(doc, opts, path)).await
 }
@@ -213,8 +213,8 @@ pub async fn export_document(
 pub async fn export_estimate(
     engine: State<'_, Engine>,
     doc: DocId,
-    opts: feuillet_core::export::ExportOptions,
-) -> Result<feuillet_core::export::ExportResult> {
+    opts: lunas_pdf_core::export::ExportOptions,
+) -> Result<lunas_pdf_core::export::ExportResult> {
     let e = engine.inner().clone();
     blocking(move || e.export_estimate(doc, opts)).await
 }
@@ -360,7 +360,7 @@ pub async fn get_signatures(
     engine: State<'_, Engine>,
     store: State<'_, Store>,
     doc: DocId,
-) -> Result<Vec<feuillet_core::SignatureInfo>> {
+) -> Result<Vec<lunas_pdf_core::SignatureInfo>> {
     let e = engine.inner().clone();
     let trusted = store.trusted_der();
     blocking(move || e.signatures(doc, &trusted)).await
@@ -378,7 +378,7 @@ pub async fn trust_signature_root(
     let e = engine.inner().clone();
     let (der, name) = blocking(move || {
         let (bytes, password) = e.saved_file(doc)?;
-        feuillet_core::signature::chain_root(&bytes, password.as_deref(), &field)
+        lunas_pdf_core::signature::chain_root(&bytes, password.as_deref(), &field)
             .ok_or_else(|| Error::Invalid("certificat introuvable".into()))
     })
     .await?;
@@ -398,7 +398,7 @@ pub struct TrustListsInfo {
 #[tauri::command]
 #[specta::specta]
 pub fn trust_lists_info() -> TrustListsInfo {
-    let b = feuillet_core::trust_lists::current();
+    let b = lunas_pdf_core::trust_lists::current();
     let eu = b.anchors.iter().filter(|a| a.source.starts_with("eu:")).count() as u32;
     TrustListsInfo {
         generated: b.generated as f64 * 1000.0,
@@ -522,5 +522,5 @@ pub fn take_pending_files(pending: State<'_, PendingFiles>) -> Vec<String> {
 #[tauri::command]
 #[specta::specta]
 pub fn log_frontend_error(message: String) {
-    eprintln!("[feuillet] interface : {message}");
+    eprintln!("[lunas-pdf] interface : {message}");
 }

@@ -42,7 +42,7 @@ export const useSettings = defineStore("settings", () => {
   }
 
   async function load() {
-    if (inTauri || "__FEUILLET_E2E__" in window) {
+    if (inTauri || "__LUNAS_PDF_E2E__" in window) {
       settings.value = { ...DEFAULTS, ...(await commands.getSettings()) } as Settings;
       systemLocale.value = await commands.systemLocale();
     } else {

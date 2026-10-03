@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use der::DecodePem;
-use feuillet_core::signature::{SigStatus, TrustStore, verify_document};
+use lunas_pdf_core::signature::{SigStatus, TrustStore, verify_document};
 use x509_cert::Certificate;
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -66,7 +66,7 @@ fn later_revision_keeps_signature_intact() {
 
 #[test]
 fn system_trust_store_is_loaded() {
-    assert!(!feuillet_core::signature::system_roots().is_empty());
+    assert!(!lunas_pdf_core::signature::system_roots().is_empty());
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn unreadable_signature_is_unknown_not_invalid() {
 #[test]
 fn approving_the_chain_root_makes_the_signature_valid() {
     use der::Encode;
-    use feuillet_core::signature::{chain_root, roots_with};
+    use lunas_pdf_core::signature::{chain_root, roots_with};
     let bytes = fixture("signe-valide.pdf");
     let s = &verify_document(&bytes, None, &roots_with(&[]))[0];
     assert_eq!(s.status, SigStatus::Unknown);
@@ -174,7 +174,7 @@ fn approving_the_chain_root_makes_the_signature_valid() {
 
 #[test]
 fn trust_list_anchor_counts_only_during_its_approval_period() {
-    use feuillet_core::signature::TrustAnchor;
+    use lunas_pdf_core::signature::TrustAnchor;
     let bytes = fixture("signe-valide.pdf");
     let signed_at = verify_document(&bytes, None, &TrustStore::default())[0].signed_at.unwrap() as i64;
     let store = |periods| TrustStore {
@@ -193,7 +193,7 @@ fn trust_list_anchor_counts_only_during_its_approval_period() {
 
 #[test]
 fn bundled_trust_lists_are_present() {
-    let b = feuillet_core::trust_lists::bundled();
+    let b = lunas_pdf_core::trust_lists::bundled();
     assert!(b.generated > 0);
     assert!(b.anchors.iter().filter(|a| a.source.starts_with("eu:")).count() > 1000);
     assert!(b.anchors.iter().filter(|a| a.source == "microsoft").count() > 100);

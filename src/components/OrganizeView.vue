@@ -46,7 +46,7 @@ async function showSide(key: string | null) {
 }
 
 async function openSide() {
-  const e2e = (window as unknown as { __FEUILLET_E2E__?: { sidePath?: string } }).__FEUILLET_E2E__;
+  const e2e = (window as unknown as { __LUNAS_PDF_E2E__?: { sidePath?: string } }).__LUNAS_PDF_E2E__;
   const paths = e2e ? (e2e.sidePath ? [e2e.sidePath] : []) : await pickPdfFiles(t("organize.openSide"));
   if (!paths.length) return;
   const opened = await tabs.openPaths(paths.slice(0, 1), false);

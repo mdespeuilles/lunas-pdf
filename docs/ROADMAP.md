@@ -84,7 +84,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 | Chaîne de certificats jusqu'au magasin du système, validité à la date de signature | ✅ | `rustls-native-certs` ; pas de contrôle de révocation (CRL, OCSP) |
 | CMS encodé en BER (longueurs indéfinies : Dropbox Sign…) | ✅ | Réencodé en DER avant analyse |
 | Autorités de signature approuvées par l'utilisateur (panneau, après confirmation de l'empreinte ; retrait dans les préférences) | ✅ | Le magasin du système ne contient que des autorités web : Notarius (Dropbox Sign), par exemple, n'y figure pas. La liste d'Adobe (AATL) n'est pas redistribuable |
-| Listes de confiance : listes officielles de l'UE (eIDAS : autorités qualifiées et horodatage qualifié, périodes d'agrément à la date de signature) et racines du programme Microsoft (CCADB : signature de documents, courriel, authentification) | ✅ | Instantané embarqué (`crates/feuillet-core/data`, régénéré par l'exemple `trust_lists`), rafraîchi chaque semaine en arrière-plan ; origine affichée dans le panneau. Vérifié sur des documents réels : Adobe Acrobat Sign (liste italienne), Dropbox Sign et sceau DocuSign (Microsoft) |
+| Listes de confiance : listes officielles de l'UE (eIDAS : autorités qualifiées et horodatage qualifié, périodes d'agrément à la date de signature) et racines du programme Microsoft (CCADB : signature de documents, courriel, authentification) | ✅ | Instantané embarqué (`crates/lunas-pdf-core/data`, régénéré par l'exemple `trust_lists`), rafraîchi chaque semaine en arrière-plan ; origine affichée dans le panneau. Vérifié sur des documents réels : Adobe Acrobat Sign (liste italienne), Dropbox Sign et sceau DocuSign (Microsoft) |
 | Échec de lecture ou algorithme inconnu : « non vérifiable », pas « invalide » | ✅ | « Invalide » est réservé au contenu modifié ou à une plage signée incohérente |
 | Horodatage RFC 3161 : empreinte et signature du jeton | ✅ | 🟡 sans fixture horodatée |
 | 3 bandeaux (valide, invalide, non vérifiable), panneau de détails (planche 05), certificat, copie des détails | ✅ | « Valide, des ajouts ont été faits depuis » pour une révision ajoutée après signature |
@@ -95,7 +95,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 | Champs de signature des formulaires : « Cliquer pour signer » | ✅ | La signature manuscrite est ajustée dans le champ |
 
 Écarts et limites :
-- Le texte de l'avertissement diffère de la planche 06 : celle-ci annonce que la modification « invalidera » la signature. Comme Feuillet enregistre en incrémental, la version signée reste vérifiable ; le texte le dit.
+- Le texte de l'avertissement diffère de la planche 06 : celle-ci annonce que la modification « invalidera » la signature. Comme Lunas PDF enregistre en incrémental, la version signée reste vérifiable ; le texte le dit.
 - Une signature manuscrite est une image, pas une signature numérique : créer une signature numérique (certificat, PAdES) n'est pas prévu.
 - Le type de signature enregistrée (« Signature » / « Paraphe » sur la planche) n'est pas distingué : toutes s'appellent « Signature ».
 - Révocation des certificats (CRL, OCSP) non consultée.
@@ -157,6 +157,6 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - pdfium-render 0.9.4 :
   - permissions R6 non décodées (on autorise par défaut en lecture) ;
   - premier lien renvoyé en double (dédupliqué) ;
-  - enregistrement incrémental non exposé : sans objet, l'écrivain Feuillet produit lui-même la révision (pas de patch nécessaire).
+  - enregistrement incrémental non exposé : sans objet, l'écrivain Lunas PDF produit lui-même la révision (pas de patch nécessaire).
 - Playwright WebKit ne démarre pas sur Arch (bibliothèques Ubuntu) : il tourne en CI, Chromium sert en local.
 - AppImage : 103 Mio, car elle embarque WebKitGTK (comportement standard de Tauri).

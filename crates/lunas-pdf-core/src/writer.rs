@@ -1,4 +1,4 @@
-//! Écrivain Feuillet : modèle d'annotations d'un document et production des révisions.
+//! Écrivain Lunas PDF : modèle d'annotations d'un document et production des révisions.
 //!
 //! Le fichier d'origine n'est jamais réécrit : chaque état du modèle est sérialisé sous la
 //! forme d'**une** révision incrémentale ajoutée aux octets enregistrés. Seuls les objets
@@ -175,7 +175,7 @@ impl Editor {
         let cur = self.snapshot();
         let before = self.pages.len();
         if let Err(e) = self.restore(s) {
-            eprintln!("[feuillet] annulation impossible : {e}");
+            eprintln!("[lunas-pdf] annulation impossible : {e}");
             return vec![];
         }
         let entry = crate::annot::Entry::Snapshot(Box::new(cur));

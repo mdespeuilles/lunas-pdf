@@ -1,14 +1,14 @@
-//! Protocole `feuillet://` : bitmaps des pages (RGBA brut) et miniatures des récents.
+//! Protocole `lunas-pdf://` : bitmaps des pages (RGBA brut) et miniatures des récents.
 //!
-//! - `feuillet://localhost/render/<doc>/<page>?w=&h=[&tx=&ty=&tw=&th=]&p=<priorité>&e=<époque>`
+//! - `lunas-pdf://localhost/render/<doc>/<page>?w=&h=[&tx=&ty=&tw=&th=]&p=<priorité>&e=<époque>`
 //!   → octets RGBA, en-têtes `x-w` / `x-h` ; 204 si la demande est périmée.
-//! - `feuillet://localhost/thumb/<id>.png`
+//! - `lunas-pdf://localhost/thumb/<id>.png`
 //!
-//! Sous Windows, l'URL est `http://feuillet.localhost/...` (même chemin).
+//! Sous Windows, l'URL est `http://lunas-pdf.localhost/...` (même chemin).
 
 use std::collections::HashMap;
 
-use feuillet_core::{Engine, Error, RenderRequest, Tile};
+use lunas_pdf_core::{Engine, Error, RenderRequest, Tile};
 use tauri::http::{Request, Response, StatusCode};
 use tauri::{Manager, UriSchemeContext, UriSchemeResponder};
 

@@ -94,7 +94,7 @@ onMounted(async () => {
 async function pickPath(): Promise<string | null> {
   const dir = props.tab.path.replace(/[^\\/]*$/, "");
   const defaultPath = dir + fileName.value;
-  if (!inTauri) return (window as unknown as { __FEUILLET_E2E__?: { exportPath?: string } }).__FEUILLET_E2E__?.exportPath ?? null;
+  if (!inTauri) return (window as unknown as { __LUNAS_PDF_E2E__?: { exportPath?: string } }).__LUNAS_PDF_E2E__?.exportPath ?? null;
   const { save } = await import("@tauri-apps/plugin-dialog");
   const ext = kind.value === "images" ? imageType.value : "pdf";
   return save({ defaultPath, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });

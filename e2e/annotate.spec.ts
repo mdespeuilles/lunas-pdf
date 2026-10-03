@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 async function start(page: Page) {
   await page.addInitScript(() => {
-    (window as unknown as Record<string, unknown>).__FEUILLET_E2E__ = { pending: ["/docs/contrat.pdf"], image: "/img/tampon.png", savePath: "/docs/copie.pdf" };
+    (window as unknown as Record<string, unknown>).__LUNAS_PDF_E2E__ = { pending: ["/docs/contrat.pdf"], image: "/img/tampon.png", savePath: "/docs/copie.pdf" };
   });
   await page.goto("/");
   await expect(page.getByRole("toolbar", { name: "contrat.pdf" }).getByText("sur 12", { exact: true })).toBeVisible();
@@ -11,8 +11,8 @@ async function start(page: Page) {
   await page.getByRole("tab", { name: "Annotations" }).click();
 }
 
-const model = (page: Page) => page.evaluate(() => ((window as any).__FEUILLET_E2E__.saved["/docs/contrat.pdf"] ?? []) as any[]);
-const calls = (page: Page) => page.evaluate(() => (window as any).__FEUILLET_E2E__.calls as string[]);
+const model = (page: Page) => page.evaluate(() => ((window as any).__LUNAS_PDF_E2E__.saved["/docs/contrat.pdf"] ?? []) as any[]);
+const calls = (page: Page) => page.evaluate(() => (window as any).__LUNAS_PDF_E2E__.calls as string[]);
 
 async function drag(page: Page, from: [number, number], to: [number, number]) {
   const box = (await page.locator(".page[data-page='0']").boundingBox())!;

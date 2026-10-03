@@ -1,7 +1,7 @@
-// Bitmaps des pages via le protocole feuillet:// (voir src-tauri/src/protocol.rs).
+// Bitmaps des pages via le protocole lunas-pdf:// (voir src-tauri/src/protocol.rs).
 
 const isWindows = typeof navigator !== "undefined" && /Windows/.test(navigator.userAgent);
-export const PROTOCOL_BASE = isWindows ? "http://feuillet.localhost" : "feuillet://localhost";
+export const PROTOCOL_BASE = isWindows ? "http://lunas-pdf.localhost" : "lunas-pdf://localhost";
 
 export interface TileRect {
   x: number;

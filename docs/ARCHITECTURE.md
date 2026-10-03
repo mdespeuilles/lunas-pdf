@@ -1,4 +1,4 @@
-# Architecture de Feuillet
+# Architecture de Lunas PDF
 
 Décision de fond : [ADR-001](ADR-001-moteur-pdf.md). PDFium sert à lire et à afficher. Un écrivain Rust (lopdf, à partir de la phase 2) est la seule source des modifications.
 
@@ -12,14 +12,14 @@ Décision de fond : [ADR-001](ADR-001-moteur-pdf.md). PDFium sert à lire et à 
 │ stores : settings · tabs (état par onglet) · recents · ui                 │
 │ lib : layout (pur) · bitmap-cache (LRU 512 Mo) · protocol · page-data     │
 └───────────┬───────────────────────────────────────┬──────────────────────┘
-            │ commandes typées (tauri-specta)        │ feuillet://localhost/render/…
+            │ commandes typées (tauri-specta)        │ lunas-pdf://localhost/render/…
             │ src/bindings.ts généré                 │ RGBA brut + en-têtes x-w/x-h
 ┌───────────▼───────────── src-tauri (app) ─────────▼──────────────────────┐
 │ commands.rs · protocol.rs · store.rs (préférences, récents, miniatures)  │
 │ trousseau (keyring) · instance unique · glisser-déposer · association    │
 └───────────┬──────────────────────────────────────────────────────────────┘
             │ Engine (poignée clonable, messages)
-┌───────────▼──────────── crates/feuillet-core ────────────────────────────┐
+┌───────────▼──────────── crates/lunas-pdf-core ────────────────────────────┐
 │ engine.rs : acteur, un fil « pdfium » qui possède la bibliothèque         │
 │   file de rendu à priorités + époques · recherche incrémentale · caches    │
 │ text.rs : regroupement des glyphes en mots, recherche (fonctions pures)    │
@@ -29,7 +29,7 @@ Décision de fond : [ADR-001](ADR-001-moteur-pdf.md). PDFium sert à lire et à 
         libpdfium (bblanchon/pdfium-binaries chromium/7881, embarquée)
 ```
 
-## Moteur (`crates/feuillet-core`)
+## Moteur (`crates/lunas-pdf-core`)
 
 - **Acteur PDFium.** PDFium n'est pas thread-safe. Un fil dédié possède donc `Pdfium` (en `'static`) et tous les `PdfDocument`. Les autres fils lui envoient des messages ; les réponses repassent par un canal à usage unique.
 - **Ordonnancement.**
@@ -42,7 +42,7 @@ Décision de fond : [ADR-001](ADR-001-moteur-pdf.md). PDFium sert à lire et à 
 
 ## Écriture : annotations et enregistrement (phase 2)
 
-Modules de `feuillet-core` :
+Modules de `lunas-pdf-core` :
 
 | Module | Rôle |
 |---|---|
@@ -99,7 +99,7 @@ L'original sur disque n'est jamais touché avant « Enregistrer ».
 - **Virtualisation.** `layout.ts` calcule la position de chaque page selon le mode (page unique, continu, double page) et le zoom. Seules les pages visibles, plus une hauteur d'écran de marge, sont montées.
 - **Basse résolution d'abord.** Une page montée affiche immédiatement la meilleure bitmap déjà en cache (miniature ou zoom précédent), puis la remplace par le rendu à la bonne taille (taille CSS × `devicePixelRatio`).
 - **Tuiles.** Au-delà de 12 Mpx par page, une bitmap de base d'environ 4 Mpx est complétée par des tuiles de 1024 px limitées à la zone visible.
-- **Transfert.** Les bitmaps arrivent en RGBA brut par le protocole `feuillet://`, plus rapide qu'`invoke` (voir ADR-001 § 3.2), puis passent par `ImageData` et `createImageBitmap`. Un cache LRU de 512 Mo regroupe les requêtes identiques en cours.
+- **Transfert.** Les bitmaps arrivent en RGBA brut par le protocole `lunas-pdf://`, plus rapide qu'`invoke` (voir ADR-001 § 3.2), puis passent par `ImageData` et `createImageBitmap`. Un cache LRU de 512 Mo regroupe les requêtes identiques en cours.
 - **Couche de texte.** Des `span` transparents sont positionnés en points, puis l'ensemble est mis à l'échelle par une transformation CSS, ce qui évite tout recalcul au zoom. Un `scaleX` par mot aligne le texte sur la largeur réelle, et des `<br>` en fin de ligne donnent une copie propre.
 - **Zoom ancré.** Ctrl + molette ou pincement zoome autour du curseur ; les boutons zooment autour du haut de la vue. Les modes « Ajuster » se recalculent à chaque redimensionnement.
 
@@ -122,7 +122,7 @@ L'original sur disque n'est jamais touché avant « Enregistrer ».
 - **Ouverture des fichiers.**
   - Par glisser-déposer n'importe où (`onDragDropEvent`).
   - Par la ligne de commande : les fichiers sont lus au démarrage, puis par `take_pending_files`.
-  - Si Feuillet tourne déjà, `tauri-plugin-single-instance` transmet les fichiers à l'instance en cours par l'événement `open-files-event`.
+  - Si Lunas PDF tourne déjà, `tauri-plugin-single-instance` transmet les fichiers à l'instance en cours par l'événement `open-files-event`.
   - Par l'association `.pdf` : `fileAssociations`, `.desktop` avec `%F`, `RunEvent::Opened` sous macOS.
 - **Linux, NVIDIA et Wayland.** `WEBKIT_DISABLE_DMABUF_RENDERER=1` est positionné automatiquement si le pilote NVIDIA est présent (voir ADR-001 § 6).
 - **Persistance.** Préférences et récents sont stockés en JSON dans le dossier de config, et les miniatures des récents dans le dossier de cache. Toutes les écritures sont atomiques : fichier temporaire, fsync, rename, fsync du dossier.
@@ -132,18 +132,18 @@ L'original sur disque n'est jamais touché avant « Enregistrer ».
 
 | Niveau | Outil | Contenu |
 |---|---|---|
-| Annotations | `cargo test -p feuillet-core --test annotations` | 12 types en aller-retour (rendu PDFium, relecture), préfixe d'origine intact, pages tournées et recadrées, xref en flux, chiffrement, annotations existantes, document signé, enregistrer sous |
-| Caviardage | `cargo test -p feuillet-core --test redaction` | Texte partiel retiré (extraction PDFium et `pdftotext`), pixels d'un scan, tracés, chiffré, annotations recouvertes |
-| Moteur | `cargo test -p feuillet-core` | Fonctions pures (mots, recherche) ; intégration sur `fixtures/` : rendu et tuiles identiques à la page, texte et géométrie, recherche, chiffrement, liens, formulaires, signatures, annulation par époque |
-| App | `cargo test -p feuillet` | Récents (déduplication, plafond, persistance), préférences, arguments de ligne de commande, export des types TS |
+| Annotations | `cargo test -p lunas-pdf-core --test annotations` | 12 types en aller-retour (rendu PDFium, relecture), préfixe d'origine intact, pages tournées et recadrées, xref en flux, chiffrement, annotations existantes, document signé, enregistrer sous |
+| Caviardage | `cargo test -p lunas-pdf-core --test redaction` | Texte partiel retiré (extraction PDFium et `pdftotext`), pixels d'un scan, tracés, chiffré, annotations recouvertes |
+| Moteur | `cargo test -p lunas-pdf-core` | Fonctions pures (mots, recherche) ; intégration sur `fixtures/` : rendu et tuiles identiques à la page, texte et géométrie, recherche, chiffrement, liens, formulaires, signatures, annulation par époque |
+| App | `cargo test -p lunas-pdf` | Récents (déduplication, plafond, persistance), préférences, arguments de ligne de commande, export des types TS |
 | UI unitaire | `bun run test` (Vitest) | Mise en page, ajustements, tuiles, dates relatives, langue |
 | Parcours | `bun run test:e2e` (Playwright) | Lecture (15 parcours) et annotation (8) : outils au clavier, poignées, mini-barre, annuler/rétablir, surlignage, zone de texte, note, coches, duplication, fermeture d'un document modifié, caviardage, tampon, enregistrer sous. Backend simulé : `vite --mode e2e`, `e2e/mock/bindings.ts` |
-| Visuel | `VITE_SELFTEST=1` ou `2` + `FEUILLET_NO_SINGLE_INSTANCE=1` | Scénarios pilotés par les stores (`src/dev/selftest.ts`) sur l'app réelle, instance isolée (XDG_* temporaires) |
+| Visuel | `VITE_SELFTEST=1` ou `2` + `LUNAS_PDF_NO_SINGLE_INSTANCE=1` | Scénarios pilotés par les stores (`src/dev/selftest.ts`) sur l'app réelle, instance isolée (XDG_* temporaires) |
 
 ## Arborescence
 
 ```
-crates/feuillet-core/   moteur PDF (Rust, sans Tauri)
+crates/lunas-pdf-core/   moteur PDF (Rust, sans Tauri)
 src-tauri/              app Tauri : commandes, protocole, persistance, intégration OS
 src/                    interface Vue (bindings.ts généré — ne pas modifier)
 e2e/                    Playwright + backend simulé

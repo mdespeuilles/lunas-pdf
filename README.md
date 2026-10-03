@@ -1,4 +1,4 @@
-# Feuillet
+# Lunas PDF
 
 Lecteur et éditeur PDF pour Linux, macOS et Windows : simple, rapide, beau. Tauri 2 (Rust) + Vue 3.
 

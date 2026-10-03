@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
-use feuillet_core::*;
+use lunas_pdf_core::*;
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -19,7 +19,7 @@ fn fixture(name: &str) -> PathBuf {
 fn engine() -> &'static Engine {
     static E: OnceLock<Engine> = OnceLock::new();
     E.get_or_init(|| {
-        let dir = std::env::var_os("FEUILLET_PDFIUM_DIR")
+        let dir = std::env::var_os("LUNAS_PDF_PDFIUM_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| root().join("src-tauri/pdfium/lib"));
         Engine::start(Some(&dir)).expect("libpdfium : lancer `bun pdfium`")

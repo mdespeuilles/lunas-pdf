@@ -5,7 +5,7 @@ export { commands };
 export type { PdfError };
 
 /** Hors de Tauri (tests e2e, aperçu navigateur), l'IPC est simulé. */
-export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window && !("__FEUILLET_E2E__" in window);
+export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window && !("__LUNAS_PDF_E2E__" in window);
 
 export class BackendError extends Error {
   constructor(public readonly error: PdfError) {

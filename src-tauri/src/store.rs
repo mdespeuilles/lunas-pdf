@@ -82,7 +82,7 @@ pub struct RecentDoc {
     pub locked: bool,
     pub signed: bool,
     pub form: bool,
-    /// Identifiant de la miniature (servie par `feuillet://localhost/thumb/<id>.png`).
+    /// Identifiant de la miniature (servie par `lunas-pdf://localhost/thumb/<id>.png`).
     pub thumb: Option<String>,
 }
 
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn recents_are_deduplicated_capped_and_persisted() {
-        let dir = std::env::temp_dir().join(format!("feuillet-store-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("lunas-pdf-store-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let s = Store::load(dir.join("cfg"), dir.join("cache"));
         let doc = |p: &str| RecentDoc {
@@ -358,7 +358,7 @@ mod tests {
 
     #[test]
     fn settings_round_trip_with_defaults_for_missing_fields() {
-        let dir = std::env::temp_dir().join(format!("feuillet-settings-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("lunas-pdf-settings-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("cfg")).unwrap();
         fs::write(dir.join("cfg/settings.json"), r#"{"theme":"dark"}"#).unwrap();

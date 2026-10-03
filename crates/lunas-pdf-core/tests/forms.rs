@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
 
-use feuillet_core::*;
+use lunas_pdf_core::*;
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -13,7 +13,7 @@ fn root() -> PathBuf {
 fn engine() -> &'static Engine {
     static E: OnceLock<Engine> = OnceLock::new();
     E.get_or_init(|| {
-        let dir = std::env::var_os("FEUILLET_PDFIUM_DIR")
+        let dir = std::env::var_os("LUNAS_PDF_PDFIUM_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| root().join("src-tauri/pdfium/lib"));
         Engine::start(Some(&dir)).expect("libpdfium : lancer `bun pdfium`")
@@ -21,7 +21,7 @@ fn engine() -> &'static Engine {
 }
 
 fn scratch(test: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("feuillet-form-{}-{test}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("lunas-pdf-form-{}-{test}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let dst = dir.join("formulaire.pdf");
     std::fs::copy(root().join("fixtures/formulaire-acroform.pdf"), &dst).unwrap();

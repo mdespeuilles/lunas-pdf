@@ -5,7 +5,7 @@ import { type DocTab, useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 
 async function pickSavePath(defaultPath: string): Promise<string | null> {
-  if (!inTauri) return (window as unknown as { __FEUILLET_E2E__?: { savePath?: string } }).__FEUILLET_E2E__?.savePath ?? null;
+  if (!inTauri) return (window as unknown as { __LUNAS_PDF_E2E__?: { savePath?: string } }).__LUNAS_PDF_E2E__?.savePath ?? null;
   const { save } = await import("@tauri-apps/plugin-dialog");
   return save({ defaultPath, filters: [{ name: "PDF", extensions: ["pdf"] }] });
 }

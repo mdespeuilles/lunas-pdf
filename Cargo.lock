@@ -1334,63 +1334,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "feuillet"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "dirs",
- "feuillet-core",
- "gtk",
- "keyring",
- "objc2",
- "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-foundation",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "specta",
- "specta-typescript",
- "sys-locale",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-single-instance",
- "tauri-specta",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "feuillet-core"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "cms",
- "der",
- "flate2",
- "getrandom 0.2.17",
- "image",
- "lopdf",
- "p256",
- "p384",
- "pdfium-render",
- "quick-xml 0.38.4",
- "rsa",
- "rustls-native-certs",
- "serde",
- "serde_json",
- "sha1",
- "sha2 0.10.9",
- "specta",
- "spki",
- "thiserror 2.0.21",
- "ureq",
- "x509-cert",
-]
-
-[[package]]
 name = "ff"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2606,6 +2549,63 @@ dependencies = [
  "stringprep",
  "thiserror 2.0.21",
  "weezl",
+]
+
+[[package]]
+name = "lunas-pdf"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dirs",
+ "gtk",
+ "keyring",
+ "lunas-pdf-core",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-foundation",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "specta",
+ "specta-typescript",
+ "sys-locale",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-single-instance",
+ "tauri-specta",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "lunas-pdf-core"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "cms",
+ "der",
+ "flate2",
+ "getrandom 0.2.17",
+ "image",
+ "lopdf",
+ "p256",
+ "p384",
+ "pdfium-render",
+ "quick-xml 0.38.4",
+ "rsa",
+ "rustls-native-certs",
+ "serde",
+ "serde_json",
+ "sha1",
+ "sha2 0.10.9",
+ "specta",
+ "spki",
+ "thiserror 2.0.21",
+ "ureq",
+ "x509-cert",
 ]
 
 [[package]]

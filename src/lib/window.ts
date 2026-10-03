@@ -68,7 +68,7 @@ export type DropEvent =
 
 /** Glisser-déposer de fichiers n'importe où dans la fenêtre. */
 export async function onFileDrop(cb: (e: DropEvent) => void) {
-  const e2e = (window as unknown as { __FEUILLET_E2E__?: Record<string, unknown> }).__FEUILLET_E2E__;
+  const e2e = (window as unknown as { __LUNAS_PDF_E2E__?: Record<string, unknown> }).__LUNAS_PDF_E2E__;
   if (e2e) e2e.emitFileDrop = cb;
   if (!inTauri) return;
   const { getCurrentWebview } = await import("@tauri-apps/api/webview");

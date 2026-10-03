@@ -4,7 +4,7 @@ type Internals = { invoke: (cmd: string, args?: Record<string, unknown>) => Prom
 const internals = (window as unknown as { __TAURI_INTERNALS__?: Internals }).__TAURI_INTERNALS__;
 
 export function bootLog(message: string) {
-  if (!internals || "__FEUILLET_E2E__" in window) return;
+  if (!internals || "__LUNAS_PDF_E2E__" in window) return;
   void internals.invoke("log_frontend_error", { message }).catch(() => {});
 }
 
@@ -15,8 +15,8 @@ export function bootLog(message: string) {
 function reloadOnce(el: HTMLElement) {
   if (!import.meta.env.DEV || el.tagName !== "SCRIPT") return;
   try {
-    if (sessionStorage.getItem("feuillet-reloaded")) return;
-    sessionStorage.setItem("feuillet-reloaded", "1");
+    if (sessionStorage.getItem("lunas-pdf-reloaded")) return;
+    sessionStorage.setItem("lunas-pdf-reloaded", "1");
   } catch {
     return;
   }
@@ -27,7 +27,7 @@ function reloadOnce(el: HTMLElement) {
 /** Interface montée : un prochain échec pourra de nouveau recharger. */
 export function bootDone() {
   try {
-    sessionStorage.removeItem("feuillet-reloaded");
+    sessionStorage.removeItem("lunas-pdf-reloaded");
   } catch {
     // stockage indisponible
   }

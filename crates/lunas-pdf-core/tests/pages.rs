@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
 
-use feuillet_core::pages::PageOp;
-use feuillet_core::*;
+use lunas_pdf_core::pages::PageOp;
+use lunas_pdf_core::*;
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -15,7 +15,7 @@ fn root() -> PathBuf {
 fn engine() -> &'static Engine {
     static E: OnceLock<Engine> = OnceLock::new();
     E.get_or_init(|| {
-        let dir = std::env::var_os("FEUILLET_PDFIUM_DIR")
+        let dir = std::env::var_os("LUNAS_PDF_PDFIUM_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| root().join("src-tauri/pdfium/lib"));
         Engine::start(Some(&dir)).expect("libpdfium : lancer `bun pdfium`")
@@ -23,7 +23,7 @@ fn engine() -> &'static Engine {
 }
 
 fn scratch(name: &str, test: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("feuillet-pages-{}-{test}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("lunas-pdf-pages-{}-{test}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let dst = dir.join(name);
     std::fs::copy(root().join("fixtures").join(name), &dst).unwrap();
@@ -254,7 +254,7 @@ fn flat(items: &[OutlineItem]) -> Vec<(String, u32)> {
 fn extract_pages_to_new_file() {
     let e = engine();
     let long = e.open(root().join("fixtures/long-320-pages.pdf"), None).unwrap();
-    let out = std::env::temp_dir().join(format!("feuillet-pages-{}-extrait.pdf", std::process::id()));
+    let out = std::env::temp_dir().join(format!("lunas-pdf-pages-{}-extrait.pdf", std::process::id()));
     e.extract_pages(long.id, vec![20, 21], &out).unwrap();
     qpdf_check(&out, None);
     let x = e.open(&out, None).unwrap();

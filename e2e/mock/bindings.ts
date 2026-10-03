@@ -11,7 +11,7 @@ export type * from "../../src/bindings";
 const callbacks = new Map<number, (m: unknown) => void>();
 let nextCb = 1;
 const w = window as unknown as Record<string, unknown>;
-w.__FEUILLET_E2E__ = w.__FEUILLET_E2E__ ?? {};
+w.__LUNAS_PDF_E2E__ = w.__LUNAS_PDF_E2E__ ?? {};
 w.__TAURI_INTERNALS__ = {
   transformCallback: (cb: (m: unknown) => void) => {
     const id = nextCb++;
@@ -20,7 +20,7 @@ w.__TAURI_INTERNALS__ = {
   },
   unregisterCallback: (id: number) => callbacks.delete(id),
 };
-const e2e = w.__FEUILLET_E2E__ as {
+const e2e = w.__LUNAS_PDF_E2E__ as {
   pending?: string[]; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]>; fields?: Record<string, FormField[]>;
   /** Pages de chaque document : origine (« 3 », « blanche », « formulaire.pdf:1 ») et rotation. */
   pages?: Record<string, string[]>;
@@ -516,7 +516,7 @@ export const commands = {
 export const events = {
   openFilesEvent: {
     listen: async (cb: (e: { payload: OpenFilesEvent }) => void) => {
-      (w.__FEUILLET_E2E__ as Record<string, unknown>).emitOpen = (paths: string[]) => cb({ payload: { paths } });
+      (w.__LUNAS_PDF_E2E__ as Record<string, unknown>).emitOpen = (paths: string[]) => cb({ payload: { paths } });
       return () => {};
     },
   },

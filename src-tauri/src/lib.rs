@@ -6,7 +6,7 @@ mod store;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use feuillet_core::Engine;
+use lunas_pdf_core::Engine;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::Manager;
@@ -30,7 +30,7 @@ pub struct TrustListsUpdatedEvent {
 /// Listes de confiance : version en cache si plus récente que l'instantané embarqué, puis
 /// téléchargement en arrière-plan quand elles ont plus de 7 jours.
 fn refresh_trust_lists(app: tauri::AppHandle, cache: std::path::PathBuf) {
-    use feuillet_core::trust_lists::{self, Bundle};
+    use lunas_pdf_core::trust_lists::{self, Bundle};
     std::thread::spawn(move || {
         if let Some(b) = std::fs::read(&cache).ok().and_then(|gz| Bundle::from_gz(&gz)) {
             trust_lists::set_current(b);
@@ -50,7 +50,7 @@ fn refresh_trust_lists(app: tauri::AppHandle, cache: std::path::PathBuf) {
                     let _ = TrustListsUpdatedEvent { generated }.emit(&app);
                 }
             }
-            Err(e) => eprintln!("[feuillet] listes de confiance non mises à jour : {e}"),
+            Err(e) => eprintln!("[lunas-pdf] listes de confiance non mises à jour : {e}"),
         }
     });
 }
@@ -122,7 +122,7 @@ fn file_args(args: impl IntoIterator<Item = String>, cwd: &Path) -> Vec<String> 
 /// Dossier de libpdfium : variable d'environnement, ressources de l'app, puis dossier de dev.
 fn pdfium_dir(app: &tauri::App) -> Option<PathBuf> {
     let lib = |d: PathBuf| d.join(Engine::platform_library_name()).is_file().then_some(d);
-    std::env::var_os("FEUILLET_PDFIUM_DIR")
+    std::env::var_os("LUNAS_PDF_PDFIUM_DIR")
         .map(PathBuf::from)
         .and_then(lib)
         .or_else(|| app.path().resource_dir().ok().map(|d| d.join("pdfium")).and_then(lib))
@@ -160,8 +160,8 @@ pub fn run() {
     let mut builder_app = tauri::Builder::default();
     // Instance unique : seulement en version publiée. En développement, une instance déjà
     // ouverte (version installée, autre `tauri dev`) capturerait le lancement et la nouvelle
-    // instance se fermerait sans rien afficher. FEUILLET_NO_SINGLE_INSTANCE la désactive aussi.
-    if !cfg!(debug_assertions) && std::env::var_os("FEUILLET_NO_SINGLE_INSTANCE").is_none() {
+    // instance se fermerait sans rien afficher. LUNAS_PDF_NO_SINGLE_INSTANCE la désactive aussi.
+    if !cfg!(debug_assertions) && std::env::var_os("LUNAS_PDF_NO_SINGLE_INSTANCE").is_none() {
         builder_app = builder_app.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             let paths = file_args(argv.into_iter().skip(1), Path::new(&cwd));
             if !paths.is_empty() {
@@ -183,7 +183,7 @@ pub fn run() {
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_millis(1500));
                     if !w.is_visible().unwrap_or(true) {
-                        eprintln!("[feuillet] l'interface n'a pas affiché la fenêtre : affichage forcé");
+                        eprintln!("[lunas-pdf] l'interface n'a pas affiché la fenêtre : affichage forcé");
                         let _ = w.show();
                     }
                 });
@@ -193,7 +193,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(PendingFiles(Mutex::new(initial)))
         .invoke_handler(builder.invoke_handler())
-        .register_asynchronous_uri_scheme_protocol("feuillet", protocol::handle)
+        .register_asynchronous_uri_scheme_protocol("lunas-pdf", protocol::handle)
         .setup(move |app| {
             builder.mount_events(app);
             let dir = pdfium_dir(app);

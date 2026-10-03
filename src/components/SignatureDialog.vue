@@ -121,7 +121,7 @@ async function pickImage() {
     const r = await open({ title: t("signature.pickImage"), filters: [{ name: t("annot.imageFilter"), extensions: ["png", "jpg", "jpeg", "svg", "PNG", "JPG", "JPEG", "SVG"] }] });
     path = typeof r === "string" ? r : null;
   } else {
-    path = (window as unknown as { __FEUILLET_E2E__?: { image?: string } }).__FEUILLET_E2E__?.image ?? null;
+    path = (window as unknown as { __LUNAS_PDF_E2E__?: { image?: string } }).__LUNAS_PDF_E2E__?.image ?? null;
   }
   if (!path) return;
   try {

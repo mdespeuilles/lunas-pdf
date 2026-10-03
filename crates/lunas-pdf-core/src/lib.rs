@@ -1,4 +1,4 @@
-//! Moteur PDF de Feuillet. Phase 1 : lecture seule (rendu, texte, recherche, sommaire,
+//! Moteur PDF de Lunas PDF. Phase 1 : lecture seule (rendu, texte, recherche, sommaire,
 //! annotations existantes, documents chiffrés). Voir docs/ARCHITECTURE.md.
 
 pub mod annot;

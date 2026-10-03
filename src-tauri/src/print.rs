@@ -3,7 +3,7 @@
 //! imprimerait l'interface.
 
 #[cfg(not(target_os = "macos"))]
-use feuillet_core::{DocId, Engine, Error, Result};
+use lunas_pdf_core::{DocId, Engine, Error, Result};
 
 /// Résolution d'impression maximale (au-delà, le rendu coûte sans gain visible).
 #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -11,9 +11,9 @@ const MAX_DPI: f64 = 300.0;
 
 #[cfg(target_os = "linux")]
 pub fn print(window: &tauri::WebviewWindow, engine: Engine, doc: DocId, name: String, pages: Vec<(f32, f32)>) -> Result<bool> {
-    use feuillet_core::RenderRequest;
     use gtk::prelude::*;
     use gtk::{PageOrientation, PrintOperation, PrintOperationAction, PrintOperationResult, cairo};
+    use lunas_pdf_core::RenderRequest;
 
     let parent = window.gtk_window().map_err(|e| Error::Engine(e.to_string()))?;
     let op = PrintOperation::new();
@@ -87,7 +87,7 @@ pub use mac::print;
 mod mac {
     use std::cell::Cell;
 
-    use feuillet_core::{Bitmap, DocId, Engine, Error, RenderRequest, Result};
+    use lunas_pdf_core::{Bitmap, DocId, Engine, Error, RenderRequest, Result};
     use objc2::rc::Retained;
     use objc2::{DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send};
     use objc2_app_kit::{NSGraphicsContext, NSPaperOrientation, NSPrintInfo, NSPrintOperation, NSView};

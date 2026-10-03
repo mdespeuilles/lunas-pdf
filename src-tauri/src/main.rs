@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    feuillet_lib::run()
+    lunas_pdf_lib::run()
 }

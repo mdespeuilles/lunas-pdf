@@ -2,14 +2,14 @@ import { expect, type Page, test } from "@playwright/test";
 
 async function start(page: Page) {
   await page.addInitScript(() => {
-    (window as unknown as Record<string, unknown>).__FEUILLET_E2E__ = { pending: ["/docs/formulaire.pdf"] };
+    (window as unknown as Record<string, unknown>).__LUNAS_PDF_E2E__ = { pending: ["/docs/formulaire.pdf"] };
   });
   await page.goto("/");
   await expect(page.getByText("Ce document contient un formulaire.")).toBeVisible();
 }
 
 const fields = (page: Page) =>
-  page.evaluate(() => Object.fromEntries(((window as any).__FEUILLET_E2E__.fields["/docs/formulaire.pdf"] ?? []).map((f: any) => [f.id, f.value])) as Record<string, string[]>);
+  page.evaluate(() => Object.fromEntries(((window as any).__LUNAS_PDF_E2E__.fields["/docs/formulaire.pdf"] ?? []).map((f: any) => [f.id, f.value])) as Record<string, string[]>);
 const pill = (page: Page) => page.getByRole("navigation", { name: "Navigation entre les champs" });
 
 test("saisie, Tab / Maj Tab, cases, radios, liste, annuler", async ({ page }) => {

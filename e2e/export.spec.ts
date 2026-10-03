@@ -2,13 +2,13 @@ import { expect, type Page, test } from "@playwright/test";
 
 async function open(page: Page, extra: Record<string, unknown> = {}) {
   await page.addInitScript((x) => {
-    (window as unknown as Record<string, unknown>).__FEUILLET_E2E__ = { pending: ["/docs/contrat.pdf"], exportPath: "/docs/sortie.pdf", ...x };
+    (window as unknown as Record<string, unknown>).__LUNAS_PDF_E2E__ = { pending: ["/docs/contrat.pdf"], exportPath: "/docs/sortie.pdf", ...x };
   }, extra);
   await page.goto("/");
   await expect(page.getByRole("toolbar", { name: "contrat.pdf" }).getByText(/^sur \d+$/)).toBeVisible();
 }
 
-const calls = (page: Page) => page.evaluate(() => (window as any).__FEUILLET_E2E__.calls as string[]);
+const calls = (page: Page) => page.evaluate(() => (window as any).__LUNAS_PDF_E2E__.calls as string[]);
 const dialog = (page: Page) => page.getByRole("dialog", { name: "Exporter « contrat »" });
 
 test("PDF aplati, plage de pages, estimation de taille", async ({ page }) => {

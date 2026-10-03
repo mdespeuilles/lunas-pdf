@@ -6,7 +6,7 @@
 //!   signer des documents, des courriels ou authentifier des personnes.
 //!
 //! Un instantané est embarqué (`data/trust-anchors.json.gz`, régénéré par
-//! `cargo run -p feuillet-core --features trust-fetch --example trust_lists`) ; l'application le
+//! `cargo run -p lunas-pdf-core --features trust-fetch --example trust_lists`) ; l'application le
 //! rafraîchit périodiquement (voir `fetch`).
 
 use std::io::Read;

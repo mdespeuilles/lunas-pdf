@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
  */
 function noStoreInDev(): Plugin {
   return {
-    name: "feuillet-no-store",
+    name: "lunas-pdf-no-store",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((_req, res, next) => {
