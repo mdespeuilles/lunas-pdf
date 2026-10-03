@@ -8,6 +8,7 @@ import { commands, inTauri, unwrap } from "../lib/api";
 import { nativeTrafficLights } from "../lib/window";
 import { useTabs } from "../stores/tabs";
 import AiPrefs from "./AiPrefs.vue";
+import { useUpdates } from "../stores/updates";
 import Modal from "./Modal.vue";
 import { ACCENTS, useSettings } from "../stores/settings";
 import { themeLabel } from "../lib/omarchy";
@@ -17,11 +18,14 @@ const { t, locale } = useI18n();
 const settings = useSettings();
 const ui = useUi();
 const tabs = useTabs();
+const updates = useUpdates();
+const version = ref("");
 
 // Autorités de signature approuvées depuis le panneau « Signature numérique ».
 const trusted = ref<TrustedRoot[]>([]);
 const lists = ref<{ generated: number; eu: number; microsoft: number } | null>(null);
 onMounted(async () => {
+  if (inTauri) version.value = await (await import("@tauri-apps/api/app")).getVersion();
   if (!inTauri && !("__LUNAS_PDF_E2E__" in window)) return;
   trusted.value = await commands.listTrustedRoots();
   lists.value = await commands.trustListsInfo();
@@ -87,6 +91,20 @@ async function untrust(r: TrustedRoot) {
         @change="settings.update({ authorName: ($event.target as HTMLInputElement).value.trim() })"
       />
     </div>
+    <div class="field">
+      <span>
+        <span class="ttl">{{ t("updates.title") }}</span>
+        <span class="hint">
+          <template v-if="updates.available">{{ t("updates.available", { version: updates.available.version }) }}</template>
+          <template v-else-if="updates.upToDate">{{ t("updates.upToDate", { version }) }}</template>
+          <template v-else-if="updates.error === 'dev'">{{ t("updates.devBuild") }}</template>
+          <span v-else-if="updates.error" class="err">{{ updates.error }}</span>
+          <template v-else>{{ t("updates.hint", { version: version || "–" }) }}</template>
+        </span>
+      </span>
+      <button v-if="updates.available" class="btn pri" :disabled="updates.installing" @click="updates.install()">{{ t("updates.install") }}</button>
+      <button v-else class="btn out" :disabled="updates.checking" @click="updates.checkNow(true)">{{ updates.checking ? t("updates.checking") : t("updates.check") }}</button>
+    </div>
     <AiPrefs />
     <label v-if="!nativeTrafficLights" class="field check">
       <input type="checkbox" class="sr-only" :checked="settings.settings.windowControls" @change="settings.update({ windowControls: ($event.target as HTMLInputElement).checked })" />
@@ -135,6 +153,7 @@ select.input { min-width: 180px; }
 .check .cb { margin-top: 1px; }
 .check:focus-within .cb { box-shadow: inset 0 0 0 1.5px var(--line-2), var(--ring); }
 .ttl { display: block; font-weight: 500; }
+.err { color: var(--bad); overflow-wrap: anywhere; }
 .hint { display: block; color: var(--text-2); font-size: 12px; margin-top: 2px; }
 .trusted { flex-direction: column; align-items: stretch; gap: 8px; }
 .trusted ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }

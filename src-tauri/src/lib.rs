@@ -207,6 +207,9 @@ pub fn run() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // Mises à jour signées, publiées sur les versions GitHub du dépôt (voir docs/versions.md).
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(PendingFiles(Mutex::new(initial)))
         .invoke_handler(builder.invoke_handler())
         .register_asynchronous_uri_scheme_protocol("lunas-pdf", protocol::handle)

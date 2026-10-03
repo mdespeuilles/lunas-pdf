@@ -409,7 +409,22 @@ const en: Messages = {
       cancelled: "Request stopped.",
       timeout: "The AI took too long to answer.",
     },
-    prefs: {
+    updates: {
+    title: "Updates",
+    hint: "Version {version}. New versions are offered automatically.",
+    check: "Check",
+    checking: "Checking…",
+    upToDate: "Lunas PDF is up to date (version {version}).",
+    devBuild: "Development build: no automatic updates.",
+    available: "Lunas PDF {version} is available",
+    install: "Update and Restart",
+    later: "Later",
+    downloading: "Downloading… {n}%",
+    installing: "Installing…",
+    showNotes: "What’s new",
+    hideNotes: "Hide what’s new",
+  },
+  prefs: {
       agent: "AI assistant",
       agentHint: "Agent installed on this computer, used with your subscription.",
       none: "None",

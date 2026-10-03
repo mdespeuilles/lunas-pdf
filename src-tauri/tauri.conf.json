@@ -69,5 +69,13 @@
         "desktopTemplate": "lunas-pdf.desktop"
       }
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFEMTMwMjE0MjFEQUNEQUUKUldTdXpkb2hGQUlUSFNqbGh3RmNrckZManpmMEIzdFl0RGtEZHl0VVgzbWh6eFA2ZGFGQnRtMnUK",
+      "endpoints": [
+        "https://github.com/mdespeuilles/lunas-pdf/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

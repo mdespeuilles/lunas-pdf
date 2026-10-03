@@ -1,0 +1,87 @@
+# Publication d'une version : `bun run release 0.2.0` crée le tag v0.2.0 (voir docs/versions.md).
+# Construit macOS (Apple Silicon, signature ad hoc : pas encore de certificat Developer ID ni
+# de notarisation), Linux (AppImage, .deb, .rpm) et Windows (.msi), signe les mises à jour avec
+# la clé du projet et publie le tout dans les versions GitHub du dépôt, avec latest.json pour
+# le module de mise à jour de l'app.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Signature ad hoc (« - ») : l'app démarre ; sans Developer ID, macOS demande de lever
+          # la quarantaine au premier téléchargement.
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --config '{"bundle":{"macOS":{"signingIdentity":"-"}}}'
+          - platform: ubuntu-22.04
+            target: ""
+            args: ""
+          - platform: windows-latest
+            target: ""
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Dépendances Linux
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev patchelf xdg-utils
+
+      - run: bun install --frozen-lockfile
+
+      # Bibliothèque PDFium de la plateforme, embarquée dans le paquet.
+      - run: bun pdfium
+
+      - name: Notes de version (section de CHANGELOG.md)
+        id: notes
+        shell: bash
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" 'index($0, "## " v " ") == 1 { f = 1; next } /^## / && f { exit } f' CHANGELOG.md > "$RUNNER_TEMP/notes.md" || true
+          {
+            echo "body<<EOF_NOTES"
+            cat "$RUNNER_TEMP/notes.md"
+            echo "EOF_NOTES"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Signature Developer ID et notarisation : étape suivante (APPLE_CERTIFICATE,
+          # APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_API_ISSUER, APPLE_API_KEY,
+          # APPLE_API_KEY_PATH), et retirer la signature ad hoc.
+        with:
+          tagName: v__VERSION__
+          releaseName: Lunas PDF v__VERSION__
+          # Repris dans latest.json : affiché par l'app avec la mise à jour.
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          tauriScript: bun tauri
+          args: --config src-tauri/tauri.release.conf.json ${{ matrix.args }}

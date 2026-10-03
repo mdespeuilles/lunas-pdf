@@ -15,6 +15,7 @@ import HomeView from "./components/HomeView.vue";
 import PreferencesDialog from "./components/PreferencesDialog.vue";
 import ReaderView from "./components/ReaderView.vue";
 import TitleBar from "./components/TitleBar.vue";
+import UpdateBanner from "./components/UpdateBanner.vue";
 import { events } from "./bindings";
 import { commands, inTauri } from "./lib/api";
 import { appWindow, onFileDrop } from "./lib/window";
@@ -22,6 +23,7 @@ import { openBeside, openPaths } from "./composables/open";
 import { confirmQuit } from "./composables/save";
 import { useShortcuts } from "./composables/shortcuts";
 import { useAi } from "./stores/ai";
+import { useUpdates } from "./stores/updates";
 import { useRecents } from "./stores/recents";
 import { useSettings } from "./stores/settings";
 import { useTabs } from "./stores/tabs";
@@ -68,6 +70,7 @@ onMounted(async () => {
     // Listes de confiance rafraîchies en arrière-plan : revérification des signatures.
     await events.trustListsUpdatedEvent.listen(() => void useTabs().reloadAllSignatures());
     await useAi().init();
+    useUpdates().start();
     const pending = await commands.takePendingFiles();
     if (pending.length) openPaths(pending);
   }
@@ -101,6 +104,7 @@ tabs.$onAction(({ name, after }) => {
     <PageDragGhost />
     <SignatureDialog v-if="sigs.dialog" />
     <div v-if="ui.toast" :key="ui.toast.seq" class="toast" role="status">{{ ui.toast.text }}</div>
+    <UpdateBanner />
   </div>
 </template>
 
