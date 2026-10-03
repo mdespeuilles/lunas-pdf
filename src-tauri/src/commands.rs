@@ -482,7 +482,7 @@ pub fn author_name(s: &Settings) -> String {
     }
     std::env::var("USER")
         .or_else(|_| std::env::var("USERNAME"))
-        .unwrap_or_else(|_| "Feuillet".into())
+        .unwrap_or_else(|_| "Lunas PDF".into())
 }
 
 #[tauri::command]

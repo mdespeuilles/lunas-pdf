@@ -158,7 +158,7 @@ const fr = {
       badText: "le document a été modifié après la signature de {name}",
       warnText: "le certificat du signataire n’est pas reconnu par ce système",
       expiredText: "le certificat du signataire n’était pas valide à la date de signature",
-      unreadableText: "Feuillet n’a pas pu vérifier cette signature",
+      unreadableText: "Lunas PDF n’a pas pu vérifier cette signature",
     },
     status: {
       label: "État",
@@ -313,7 +313,7 @@ const fr = {
     prevShort: "précédent",
     shiftTab: "Maj Tab",
     customScripts: "Scripts personnalisés non exécutés",
-    customScriptsHint: "Feuillet applique les formats, contrôles et calculs standard des formulaires. Les autres scripts de ce document ne sont pas exécutés : certains calculs ou vérifications peuvent manquer.",
+    customScriptsHint: "Lunas PDF applique les formats, contrôles et calculs standard des formulaires. Les autres scripts de ce document ne sont pas exécutés : certains calculs ou vérifications peuvent manquer.",
     errors: {
       number: "« {field} » : nombre attendu.",
       date: "« {field} » : date attendue au format {format}.",
@@ -353,7 +353,7 @@ const fr = {
   menu: {
     open: "Ouvrir…",
     preferences: "Préférences…",
-    about: "À propos de Feuillet",
+    about: "À propos de Lunas PDF",
     closeTab: "Fermer l’onglet",
     save: "Enregistrer",
     saveAs: "Enregistrer sous…",

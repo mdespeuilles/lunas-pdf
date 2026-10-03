@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Feuillet",
-  "mainBinaryName": "feuillet",
+  "productName": "Lunas PDF",
+  "mainBinaryName": "lunas-pdf",
   "version": "0.1.0",
   "identifier": "fr.lunas.feuillet",
   "build": {
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Feuillet",
+        "title": "Lunas PDF",
         "width": 1280,
         "height": 820,
         "minWidth": 720,
@@ -40,7 +40,7 @@
     ],
     "category": "Productivity",
     "shortDescription": "Lecteur et éditeur PDF",
-    "longDescription": "Feuillet est un lecteur et éditeur PDF simple, rapide et beau.",
+    "longDescription": "Lunas PDF est un lecteur et éditeur PDF simple, rapide et beau.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

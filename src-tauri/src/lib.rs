@@ -207,7 +207,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("erreur au démarrage de Feuillet")
+        .expect("erreur au démarrage de Lunas PDF")
         .run(|app, event| {
             // macOS : ouverture via le Finder ou l'association de fichiers.
             #[cfg(any(target_os = "macos", target_os = "ios"))]

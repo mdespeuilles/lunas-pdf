@@ -17,7 +17,7 @@ onMounted(async () => {
   <Modal :title="t('menu.about')" :close-label="t('prefs.close')" :width="360" @close="ui.aboutOpen = false">
     <div class="about">
       <img src="/app-icon.svg" alt="" width="64" height="64" />
-      <strong>Feuillet</strong>
+      <strong>Lunas PDF</strong>
       <span>{{ t("about.version", { v: version }) }}</span>
       <p>{{ t("about.text") }}</p>
       <span class="dim">{{ t("about.engine") }}</span>

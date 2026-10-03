@@ -159,7 +159,7 @@ const en: Messages = {
       badText: "the document was changed after {name} signed it",
       warnText: "the signer’s certificate isn’t recognized by this system",
       expiredText: "the signer’s certificate wasn’t valid on the signing date",
-      unreadableText: "Feuillet couldn’t verify this signature",
+      unreadableText: "Lunas PDF couldn’t verify this signature",
     },
     status: {
       label: "Status",
@@ -314,7 +314,7 @@ const en: Messages = {
     prevShort: "previous",
     shiftTab: "Shift Tab",
     customScripts: "Custom scripts not run",
-    customScriptsHint: "Feuillet applies standard form formats, checks and calculations. This document’s other scripts aren’t run, so some calculations or checks may be missing.",
+    customScriptsHint: "Lunas PDF applies standard form formats, checks and calculations. This document’s other scripts aren’t run, so some calculations or checks may be missing.",
     errors: {
       number: "“{field}”: a number is expected.",
       date: "“{field}”: a date is expected, formatted as {format}.",
@@ -354,7 +354,7 @@ const en: Messages = {
   menu: {
     open: "Open…",
     preferences: "Preferences…",
-    about: "About Feuillet",
+    about: "About Lunas PDF",
     closeTab: "Close tab",
     save: "Save",
     saveAs: "Save as…",
