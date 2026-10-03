@@ -141,7 +141,7 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 | Qualité des images (léger, équilibré, maximal) | ✅ | Images RVB ou en niveaux de gris réduites (1 400 / 2 200 px) et réencodées en JPEG si plus légères ; qualité JPEG d'un export en images |
 | Pages : toutes, page actuelle, plage (« 1-3, 5, 8- ») | ✅ | |
 | Mot de passe et autorisations (impression, copie) | ✅ | AES-256 (révision 6), mot de passe propriétaire aléatoire ; vérifié avec qpdf et Poppler |
-| Impression native (Ctrl P, menu, fenêtre d'export) | 🟡 | Linux : dialogue d'impression GTK, pages rendues par PDFium (300 ppp au plus). Non vérifiée automatiquement (dialogue du système). macOS et Windows : message « non disponible » |
+| Impression native (Ctrl P, menu, fenêtre d'export) | 🟡 | Linux : dialogue d'impression GTK ; macOS : `NSPrintOperation` (une page imprimée par page, ajustée à la zone imprimable). Pages rendues par PDFium (300 ppp au plus). Non vérifiée automatiquement (dialogue du système). Windows : message « non disponible » |
 
 Écarts et limites :
 - Un document chiffré s'exporte en clair si « Protéger par mot de passe » n'est pas coché.

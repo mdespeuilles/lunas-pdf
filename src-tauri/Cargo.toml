@@ -32,3 +32,16 @@ base64 = "0.22"
 # Impression native (dialogue d'impression GTK, déjà embarqué par Tauri sous Linux).
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
+
+# Impression native (NSPrintOperation d'AppKit, déjà embarqué par Tauri sous macOS).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std", "objc2-core-foundation", "objc2-core-graphics",
+  "NSGraphicsContext", "NSPrintInfo", "NSPrintOperation", "NSResponder", "NSView",
+] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFData", "CFCGTypes"] }
+objc2-core-graphics = { version = "0.3", default-features = false, features = [
+  "std", "CGColorSpace", "CGContext", "CGDataProvider", "CGImage",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSObject", "NSRange", "NSString"] }
