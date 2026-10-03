@@ -1,5 +1,6 @@
 mod ai;
 mod commands;
+mod omarchy;
 mod print;
 mod protocol;
 mod store;
@@ -106,6 +107,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::ai_cancel,
             commands::get_ai_memory,
             commands::set_ai_memory,
+            commands::get_omarchy_theme,
         ])
         .events(collect_events![
             OpenFilesEvent,
@@ -113,7 +115,8 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             ai::AiChunkEvent,
             ai::AiToolEvent,
             ai::AiEditedEvent,
-            ai::AiMemoryEvent
+            ai::AiMemoryEvent,
+            omarchy::OmarchyThemeEvent
         ])
         // Les flottants transmis (géométrie) ne sont jamais NaN : `number` plutôt que `number | null`.
         .semantic_types(specta_typescript::semantic::Configuration::empty().enable_lossless_floats())
@@ -218,6 +221,7 @@ pub fn run() {
             app.manage(engine);
             app.manage(store);
             app.manage(ai::AiService::new(app.handle().clone()));
+            omarchy::watch(app.handle().clone());
             Ok(())
         })
         .build(tauri::generate_context!())

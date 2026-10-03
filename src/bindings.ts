@@ -96,6 +96,15 @@ export const commands = {
 	getAiMemory: () => __TAURI_INVOKE<string[]>("get_ai_memory"),
 	/**  Remplace les informations mémorisées (doublons et lignes vides retirés). */
 	setAiMemory: (facts: string[]) => typedError<string[], PdfError>(__TAURI_INVOKE("set_ai_memory", { facts })),
+	/**  Thème d'Omarchy (Linux), s'il est installé. */
+	getOmarchyTheme: () => __TAURI_INVOKE<{
+	/**  Nom du thème (« tokyo-night »). */
+	name: string,
+	/**  Thème sombre (`mode`, ou absence de `light.mode`) ; `None` : à déduire du fond. */
+	dark: boolean | null,
+	/**  Couleurs de `colors.toml` (« #rrggbb »), par nom de clé. */
+	colors: { [key in string]: string },
+} | null>("get_omarchy_theme"),
 };
 
 /** Events */
@@ -104,6 +113,7 @@ export const events = {
 	aiEditedEvent: makeEvent<AiEditedEvent>("ai-edited-event", (v) => ({...v,state:({...v.state,annots:v.state.annots.map(i=>i),fields:v.state.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.state.pages==null?v.state.pages:v.state.pages.map(i=>i)})}), (v) => ({...v,state:({...v.state,annots:v.state.annots.map(i=>i),fields:v.state.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.state.pages==null?v.state.pages:v.state.pages.map(i=>i)})})),
 	aiMemoryEvent: makeEvent<AiMemoryEvent>("ai-memory-event"),
 	aiToolEvent: makeEvent<AiToolEvent>("ai-tool-event"),
+	omarchyThemeEvent: makeEvent<OmarchyThemeEvent>("omarchy-theme-event"),
 	openFilesEvent: makeEvent<OpenFilesEvent>("open-files-event"),
 	trustListsUpdatedEvent: makeEvent<TrustListsUpdatedEvent>("trust-lists-updated-event"),
 };
@@ -404,6 +414,20 @@ export type LinkInfo = {
 };
 
 export type LinkTarget = { type: "page"; page: number } | { type: "uri"; uri: string };
+
+export type OmarchyTheme = {
+	/**  Nom du thème (« tokyo-night »). */
+	name: string,
+	/**  Thème sombre (`mode`, ou absence de `light.mode`) ; `None` : à déduire du fond. */
+	dark: boolean | null,
+	/**  Couleurs de `colors.toml` (« #rrggbb »), par nom de clé. */
+	colors: { [key in string]: string },
+};
+
+/**  Le thème d'Omarchy a changé (ou a disparu). */
+export type OmarchyThemeEvent = {
+	theme: OmarchyTheme | null,
+};
 
 /**  Fichiers à ouvrir reçus pendant l'exécution (seconde instance, association de fichiers). */
 export type OpenFilesEvent = {

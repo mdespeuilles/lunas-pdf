@@ -21,7 +21,7 @@ w.__TAURI_INTERNALS__ = {
   unregisterCallback: (id: number) => callbacks.delete(id),
 };
 const e2e = w.__LUNAS_PDF_E2E__ as {
-  pending?: string[]; memory?: string[]; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]>; fields?: Record<string, FormField[]>;
+  pending?: string[]; memory?: string[]; omarchy?: unknown; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]>; fields?: Record<string, FormField[]>;
   /** Pages de chaque document : origine (« 3 », « blanche », « formulaire.pdf:1 ») et rotation. */
   pages?: Record<string, string[]>;
 };
@@ -527,6 +527,9 @@ export const commands = {
     return ok("J’ai rempli le champ **Nom** ([page 2](lunas://page/2)).");
   },
   async aiCancel(_requestId: string) {},
+  async getOmarchyTheme() {
+    return e2e.omarchy ?? null;
+  },
   async getAiMemory(): Promise<string[]> {
     return [...(e2e.memory ?? [])];
   },
@@ -553,4 +556,10 @@ export const events = {
   aiToolEvent: { listen: async (cb: AiCb) => ((aiListeners.tool ??= []).push(cb), () => {}) },
   aiEditedEvent: { listen: async (cb: AiCb) => ((aiListeners.edited ??= []).push(cb), () => {}) },
   aiMemoryEvent: { listen: async (cb: AiCb) => ((aiListeners.memory ??= []).push(cb), () => {}) },
+  omarchyThemeEvent: {
+    listen: async (cb: AiCb) => {
+      (w.__LUNAS_PDF_E2E__ as Record<string, unknown>).emitOmarchy = (theme: unknown) => cb({ payload: { theme } });
+      return () => {};
+    },
+  },
 };

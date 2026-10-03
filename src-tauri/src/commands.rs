@@ -567,3 +567,10 @@ pub fn get_ai_memory(store: State<'_, Store>) -> Vec<String> {
 pub fn set_ai_memory(store: State<'_, Store>, facts: Vec<String>) -> Result<Vec<String>> {
     store.set_memory(facts).map_err(io)
 }
+
+/// Thème d'Omarchy (Linux), s'il est installé.
+#[tauri::command]
+#[specta::specta]
+pub fn get_omarchy_theme() -> Option<crate::omarchy::OmarchyTheme> {
+    crate::omarchy::read()
+}

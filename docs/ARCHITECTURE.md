@@ -124,6 +124,7 @@ L'original sur disque n'est jamais touché avant « Enregistrer ».
   - Par la ligne de commande : les fichiers sont lus au démarrage, puis par `take_pending_files`.
   - Si Lunas PDF tourne déjà, `tauri-plugin-single-instance` transmet les fichiers à l'instance en cours par l'événement `open-files-event`.
   - Par l'association `.pdf` : `fileAssociations`, `.desktop` avec `%F`, `RunEvent::Opened` sous macOS.
+- **Omarchy.** Sous Linux, si Omarchy est installé, le thème « Système » reprend les couleurs du thème courant (`src-tauri/src/omarchy.rs` lit `~/.local/state/omarchy/current/theme/colors.toml`, ou `~/.config/omarchy/current/theme` pour les versions antérieures ; `src/lib/omarchy.ts` les traduit en tokens). Changement de thème suivi en direct (vérification chaque seconde, événement `omarchy-theme-event`). « Clair » et « Sombre » gardent les thèmes de l'app.
 - **Linux, NVIDIA et Wayland.** `WEBKIT_DISABLE_DMABUF_RENDERER=1` est positionné automatiquement si le pilote NVIDIA est présent (voir ADR-001 § 6).
 - **Persistance.** Préférences et récents sont stockés en JSON dans le dossier de config, et les miniatures des récents dans le dossier de cache. Toutes les écritures sont atomiques : fichier temporaire, fsync, rename, fsync du dossier.
 - **Mots de passe.** Ils sont mémorisés dans le trousseau du système (`keyring` 4, Secret Service sous Linux), sous une clé dérivée du chemin du fichier (SHA-256 tronqué). Un mot de passe mémorisé devenu faux est effacé.

@@ -10,6 +10,7 @@ import { useTabs } from "../stores/tabs";
 import AiPrefs from "./AiPrefs.vue";
 import Modal from "./Modal.vue";
 import { ACCENTS, useSettings } from "../stores/settings";
+import { themeLabel } from "../lib/omarchy";
 import { useUi } from "../stores/ui";
 
 const { t, locale } = useI18n();
@@ -35,7 +36,10 @@ async function untrust(r: TrustedRoot) {
 <template>
   <Modal :title="t('prefs.title')" :close-label="t('prefs.close')" :width="520" @close="ui.prefsOpen = false">
     <div class="field">
-      <span class="lbl" id="p-theme">{{ t("prefs.theme") }}</span>
+      <span>
+        <span class="lbl" id="p-theme">{{ t("prefs.theme") }}</span>
+        <span v-if="settings.omarchy" class="hint">{{ settings.omarchyApplied ? t("prefs.omarchyFollowed", { name: themeLabel(settings.omarchy.name) }) : t("prefs.omarchyAvailable") }}</span>
+      </span>
       <div class="seg" role="radiogroup" aria-labelledby="p-theme">
         <button v-for="v in (['system', 'light', 'dark'] as const)" :key="v" role="radio" :aria-checked="settings.settings.theme === v" :class="{ on: settings.settings.theme === v }" @click="settings.update({ theme: v })">
           {{ t(`prefs.theme${v[0].toUpperCase()}${v.slice(1)}`) }}
@@ -43,8 +47,11 @@ async function untrust(r: TrustedRoot) {
       </div>
     </div>
     <div class="field">
-      <span class="lbl" id="p-accent">{{ t("prefs.accent") }}</span>
-      <div class="swatches" role="radiogroup" aria-labelledby="p-accent">
+      <span>
+        <span class="lbl" id="p-accent">{{ t("prefs.accent") }}</span>
+        <span v-if="settings.omarchyApplied" class="hint">{{ t("prefs.accentOmarchy") }}</span>
+      </span>
+      <div class="swatches" :class="{ off: settings.omarchyApplied }" role="radiogroup" aria-labelledby="p-accent">
         <button
           v-for="c in ACCENTS"
           :key="c"
@@ -117,6 +124,7 @@ async function untrust(r: TrustedRoot) {
 .field:first-of-type { border-top: 0; }
 .lbl { font-weight: 500; }
 .swatches { display: flex; gap: 8px; }
+.swatches.off { opacity: .4; }
 .sw { position: relative; width: 24px; height: 24px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; color: #fff; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12); }
 .sw:focus-visible, .custom:focus-within { box-shadow: var(--ring); }
 .custom { background: conic-gradient(#f03e3e, #fab005, #40c057, #228be6, #be4bdb, #f03e3e); overflow: hidden; }

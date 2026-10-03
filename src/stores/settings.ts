@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
-import type { Settings as RawSettings } from "../bindings";
+import { events, type OmarchyTheme, type Settings as RawSettings } from "../bindings";
+import { omarchyStyle } from "../lib/omarchy";
 import { commands, inTauri, unwrap } from "../lib/api";
 import { resolveLocale, setLocale } from "../i18n";
 
@@ -33,13 +34,23 @@ export const useSettings = defineStore("settings", () => {
 
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => (systemDark.value = e.matches));
 
-  const dark = computed(() => (settings.value.theme === "system" ? systemDark.value : settings.value.theme === "dark"));
+  /** Thème d'Omarchy (Linux), suivi quand le thème est « Système ». */
+  const omarchy = ref<OmarchyTheme | null>(null);
+  const omarchyApplied = computed(() => (settings.value.theme === "system" && omarchy.value ? omarchyStyle(omarchy.value) : null));
+  const dark = computed(() =>
+    omarchyApplied.value ? omarchyApplied.value.dark : settings.value.theme === "system" ? systemDark.value : settings.value.theme === "dark",
+  );
   const locale = computed(() => resolveLocale(settings.value.language, systemLocale.value));
+  let inlineVars: string[] = [];
 
   function apply() {
     const root = document.documentElement;
     root.classList.toggle("dark", dark.value);
-    root.style.setProperty("--accent", settings.value.accent);
+    // Couleurs d'Omarchy par-dessus les tokens (styles en ligne), retirées sinon.
+    for (const v of inlineVars) root.style.removeProperty(v);
+    const vars = omarchyApplied.value?.vars ?? { "--accent": settings.value.accent };
+    for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
+    inlineVars = Object.keys(vars);
     root.style.colorScheme = dark.value ? "dark" : "light";
     setLocale(locale.value);
   }
@@ -48,6 +59,8 @@ export const useSettings = defineStore("settings", () => {
     if (inTauri || "__LUNAS_PDF_E2E__" in window) {
       settings.value = { ...DEFAULTS, ...(await commands.getSettings()) } as Settings;
       systemLocale.value = await commands.systemLocale();
+      omarchy.value = await commands.getOmarchyTheme();
+      await events.omarchyThemeEvent.listen((e) => (omarchy.value = e.payload.theme));
     } else {
       systemLocale.value = navigator.language;
     }
@@ -60,7 +73,7 @@ export const useSettings = defineStore("settings", () => {
     if (inTauri) await unwrap(commands.setSettings(settings.value));
   }
 
-  watch([dark, locale, () => settings.value.accent], apply);
+  watch([dark, locale, () => settings.value.accent, omarchyApplied], apply);
 
-  return { settings, dark, locale, loaded, load, update };
+  return { settings, dark, locale, loaded, load, update, omarchy, omarchyApplied };
 });
