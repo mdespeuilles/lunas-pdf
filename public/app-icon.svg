@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect x="64" y="64" width="896" height="896" rx="208" fill="#3466f6"/>
-  <g fill="none" stroke="#fff" stroke-width="56" stroke-linecap="round" stroke-linejoin="round" transform="translate(212 192) scale(25)">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2.1"/>
-    <path d="M14 2v6h6" stroke-width="2.1"/>
-    <path d="M8 13h8M8 17h5" stroke-width="2.1"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="16 16 224 224"><rect x="16" y="16" width="224" height="224" rx="52" fill="#3466f6"></rect><path d="M16 128V68A52 52 0 0 1 68 16H188A52 52 0 0 1 240 68V128Z" fill="rgba(255,255,255,.12)"></path><g transform="rotate(-8 128 128)"><rect x="66" y="42" width="120" height="166" rx="10" fill="#ffffff"></rect><rect x="84" y="66" width="56" height="10" rx="5" fill="#8e9ab5"></rect><rect x="78" y="94" width="96" height="22" rx="5" fill="#ffd43b"></rect><rect x="84" y="100" width="84" height="10" rx="5" fill="rgba(0,0,0,.28)"></rect><rect x="84" y="128" width="84" height="10" rx="5" fill="#c3cce0"></rect><rect x="84" y="150" width="60" height="10" rx="5" fill="#c3cce0"></rect></g><g transform="rotate(40 170 147)"><rect x="156" y="70" width="28" height="122" rx="7" fill="#20242f"></rect><rect x="156" y="88" width="28" height="9" fill="#ffd43b"></rect><polygon points="156,190 184,190 170,218" fill="#efd9b4"></polygon><polygon points="164,206 176,206 170,218" fill="#20242f"></polygon></g></svg>
