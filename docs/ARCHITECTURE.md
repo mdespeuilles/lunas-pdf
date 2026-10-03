@@ -128,6 +128,10 @@ L'original sur disque n'est jamais touché avant « Enregistrer ».
 - **Persistance.** Préférences et récents sont stockés en JSON dans le dossier de config, et les miniatures des récents dans le dossier de cache. Toutes les écritures sont atomiques : fichier temporaire, fsync, rename, fsync du dossier.
 - **Mots de passe.** Ils sont mémorisés dans le trousseau du système (`keyring` 4, Secret Service sous Linux), sous une clé dérivée du chemin du fichier (SHA-256 tronqué). Un mot de passe mémorisé devenu faux est effacé.
 
+## Assistant IA
+
+Panneau à droite du document, confié à l'agent installé sur le poste (Claude Code ou Codex) : voir [ia.md](ia.md). `src-tauri/src/ai/` lance l'agent, relaie sa réponse (`AiChunkEvent`, `AiToolEvent`) et, avec Claude Code, sert les outils du document par un serveur MCP local. Les modifications passent par `Engine::edit` et arrivent à l'onglet par `AiEditedEvent` (`tabs.applyExternal`) : annulables, non enregistrées. Front : `stores/ai.ts`, `AiPanel.vue`, `AiPrefs.vue`, `lib/markdown.ts`.
+
 ## Tests
 
 | Niveau | Outil | Contenu |
@@ -135,7 +139,7 @@ L'original sur disque n'est jamais touché avant « Enregistrer ».
 | Annotations | `cargo test -p lunas-pdf-core --test annotations` | 12 types en aller-retour (rendu PDFium, relecture), préfixe d'origine intact, pages tournées et recadrées, xref en flux, chiffrement, annotations existantes, document signé, enregistrer sous |
 | Caviardage | `cargo test -p lunas-pdf-core --test redaction` | Texte partiel retiré (extraction PDFium et `pdftotext`), pixels d'un scan, tracés, chiffré, annotations recouvertes |
 | Moteur | `cargo test -p lunas-pdf-core` | Fonctions pures (mots, recherche) ; intégration sur `fixtures/` : rendu et tuiles identiques à la page, texte et géométrie, recherche, chiffrement, liens, formulaires, signatures, annulation par époque |
-| App | `cargo test -p lunas-pdf` | Récents (déduplication, plafond, persistance), préférences, arguments de ligne de commande, export des types TS |
+| App | `cargo test -p lunas-pdf` | Récents (déduplication, plafond, persistance), préférences, arguments de ligne de commande, export des types TS ; IA : arguments et flux de l'agent, serveur MCP, consignes, outils (valeurs des champs, zones de texte, segments). Essais réels ignorés par défaut (voir ia.md) |
 | UI unitaire | `bun run test` (Vitest) | Mise en page, ajustements, tuiles, dates relatives, langue |
 | Parcours | `bun run test:e2e` (Playwright) | Lecture (15 parcours) et annotation (8) : outils au clavier, poignées, mini-barre, annuler/rétablir, surlignage, zone de texte, note, coches, duplication, fermeture d'un document modifié, caviardage, tampon, enregistrer sous. Backend simulé : `vite --mode e2e`, `e2e/mock/bindings.ts` |
 | Visuel | `VITE_SELFTEST=1` ou `2` + `LUNAS_PDF_NO_SINGLE_INSTANCE=1` | Scénarios pilotés par les stores (`src/dev/selftest.ts`) sur l'app réelle, instance isolée (XDG_* temporaires) |

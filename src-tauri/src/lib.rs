@@ -1,3 +1,4 @@
+mod ai;
 mod commands;
 mod print;
 mod protocol;
@@ -100,8 +101,20 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::system_locale,
             commands::take_pending_files,
             commands::log_frontend_error,
+            commands::ai_detect,
+            commands::ai_run,
+            commands::ai_cancel,
+            commands::get_ai_memory,
+            commands::set_ai_memory,
         ])
-        .events(collect_events![OpenFilesEvent, TrustListsUpdatedEvent])
+        .events(collect_events![
+            OpenFilesEvent,
+            TrustListsUpdatedEvent,
+            ai::AiChunkEvent,
+            ai::AiToolEvent,
+            ai::AiEditedEvent,
+            ai::AiMemoryEvent
+        ])
         // Les flottants transmis (géométrie) ne sont jamais NaN : `number` plutôt que `number | null`.
         .semantic_types(specta_typescript::semantic::Configuration::empty().enable_lossless_floats())
 }
@@ -204,6 +217,7 @@ pub fn run() {
             refresh_trust_lists(app.handle().clone(), paths.app_cache_dir()?.join("trust-anchors.json.gz"));
             app.manage(engine);
             app.manage(store);
+            app.manage(ai::AiService::new(app.handle().clone()));
             Ok(())
         })
         .build(tauri::generate_context!())

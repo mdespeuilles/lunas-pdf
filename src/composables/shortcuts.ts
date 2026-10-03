@@ -1,6 +1,7 @@
 // Raccourcis clavier globaux (repris des aria-label des planches).
 import { onBeforeUnmount, onMounted } from "vue";
 import { moved, canMove } from "../lib/annot-geom";
+import { useAi } from "../stores/ai";
 import { TOOL_KEYS, useAnnotTools } from "../stores/annotTools";
 import { type DocTab, useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
@@ -33,6 +34,7 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
   const form = useForm();
   const organize = useOrganize();
   const pageClip = usePageClipboard();
+  const ai = useAi();
 
   function onKey(e: KeyboardEvent) {
     const ctrl = e.ctrlKey || e.metaKey;
@@ -56,6 +58,7 @@ export function useShortcuts(reader: () => ReaderHandle | undefined) {
     if (ctrl && e.shiftKey && key === "o") return run(e, () => tabs.toggleOrganizing(tab));
     if (ctrl && e.shiftKey && key === "e") return run(e, () => (ui.exportTab = tab.key));
     if (ctrl && !e.shiftKey && key === "p") return run(e, () => printTab(tab));
+    if (ctrl && !e.shiftKey && key === "j" && ai.enabled) return run(e, () => ai.toggle(tab));
     if (tab.organizing) return organizeKeys(e, tab, typing, ctrl, key);
     if (ctrl && e.shiftKey && key === "a") return run(e, () => toggleAnnotate(tab));
     if (!typing && ctrl && (key === "y" || (key === "z" && e.shiftKey))) return run(e, () => tabs.redo(tab));

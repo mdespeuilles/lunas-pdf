@@ -2,7 +2,7 @@
 // Barre d'outils de lecture (planche 02).
 import {
   ChevronDown, ChevronLeft, ChevronRight, Check, Columns2, GalleryVertical, LayoutGrid, MoveHorizontal,
-  PanelLeft, PenLine, RectangleVertical, Scan, Share, ZoomIn, ZoomOut,
+  PanelLeft, PenLine, RectangleVertical, Scan, Share, Sparkles, ZoomIn, ZoomOut,
 } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -12,6 +12,7 @@ import SearchBox from "./SearchBox.vue";
 import { ZOOM_PRESETS } from "../lib/layout";
 import { percent } from "../lib/format";
 import { toggleAnnotate } from "../composables/signed";
+import { useAi } from "../stores/ai";
 import { type DocTab, useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 
@@ -19,6 +20,7 @@ const props = defineProps<{ tab: DocTab; disabled?: boolean }>();
 const { t, locale } = useI18n();
 const tabs = useTabs();
 const ui = useUi();
+const ai = useAi();
 const searchBox = ref<InstanceType<typeof SearchBox>>();
 const pageInput = ref<HTMLInputElement>();
 const count = computed(() => props.tab.info?.pages.length ?? 0);
@@ -145,6 +147,18 @@ defineExpose({
       </button>
       <button class="tb" :disabled="disabled" :aria-label="t('toolbar.share')" :title="t('toolbar.share')" @click="ui.exportTab = tab.key">
         <Share class="ic" aria-hidden="true" />
+      </button>
+      <button
+        v-if="ai.enabled"
+        class="tb"
+        :class="{ on: tab.aiOpen }"
+        :disabled="disabled"
+        :aria-pressed="tab.aiOpen"
+        :aria-label="t('toolbar.ai')"
+        :title="t('toolbar.ai')"
+        @click="ai.toggle(tab)"
+      >
+        <Sparkles class="ic" aria-hidden="true" />
       </button>
     </div>
     <AppMenu variant="more" />

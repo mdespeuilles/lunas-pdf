@@ -28,6 +28,11 @@ sys-locale = "0.3"
 sha2 = "0.11"
 dirs = "7"
 base64 = "0.22"
+image.workspace = true
+getrandom = "0.2"
+# Panneau IA : agent lancé en programme séparé, serveur MCP local.
+tokio = { version = "1", features = ["process", "io-util", "net", "time", "sync", "macros", "rt"] }
+tokio-util = "0.7"
 
 # Impression native (dialogue d'impression GTK, déjà embarqué par Tauri sous Linux).
 [target.'cfg(target_os = "linux")'.dependencies]

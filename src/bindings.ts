@@ -87,15 +87,78 @@ export const commands = {
 	 *  dont la console n'est pas visible).
 	 */
 	logFrontendError: (message: string) => __TAURI_INVOKE<void>("log_frontend_error", { message }),
+	/**  Installation de l'agent (préférences). */
+	aiDetect: (agent: Agent) => typedError<Detected, AiError>(__TAURI_INVOKE("ai_detect", { agent })),
+	/**  Lance une demande ; le texte arrive par `AiChunkEvent`, le résultat complet à la fin. */
+	aiRun: (requestId: string, task: AiTask) => typedError<string, AiError>(__TAURI_INVOKE("ai_run", { requestId, task })),
+	aiCancel: (requestId: string) => __TAURI_INVOKE<void>("ai_cancel", { requestId }),
+	/**  Informations mémorisées pour remplir les documents (préférences, panneau IA). */
+	getAiMemory: () => __TAURI_INVOKE<string[]>("get_ai_memory"),
+	/**  Remplace les informations mémorisées (doublons et lignes vides retirés). */
+	setAiMemory: (facts: string[]) => typedError<string[], PdfError>(__TAURI_INVOKE("set_ai_memory", { facts })),
 };
 
 /** Events */
 export const events = {
+	aiChunkEvent: makeEvent<AiChunkEvent>("ai-chunk-event"),
+	aiEditedEvent: makeEvent<AiEditedEvent>("ai-edited-event", (v) => ({...v,state:({...v.state,annots:v.state.annots.map(i=>i),fields:v.state.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.state.pages==null?v.state.pages:v.state.pages.map(i=>i)})}), (v) => ({...v,state:({...v.state,annots:v.state.annots.map(i=>i),fields:v.state.fields.map(i=>({...i,range:i.range==null?i.range:({...i.range,min:i.range.min==null?i.range.min:i.range.min,max:i.range.max==null?i.range.max:i.range.max})})),pages:v.state.pages==null?v.state.pages:v.state.pages.map(i=>i)})})),
+	aiMemoryEvent: makeEvent<AiMemoryEvent>("ai-memory-event"),
+	aiToolEvent: makeEvent<AiToolEvent>("ai-tool-event"),
 	openFilesEvent: makeEvent<OpenFilesEvent>("open-files-event"),
 	trustListsUpdatedEvent: makeEvent<TrustListsUpdatedEvent>("trust-lists-updated-event"),
 };
 
 /* Types */
+export type Agent = "none" | "claude" | "codex";
+
+/**  Morceau de réponse. */
+export type AiChunkEvent = {
+	requestId: string,
+	delta: string,
+};
+
+/**  Le document a été modifié par l'agent : nouvel état d'édition de l'onglet. */
+export type AiEditedEvent = {
+	doc: number,
+	state: EditState,
+};
+
+/**  Erreur d'une demande ; le front affiche le message traduit. */
+export type AiError = {
+	kind: AiErrorKind,
+	detail: string,
+};
+
+export type AiErrorKind = "notConfigured" | "notFound" | "outdated" | "failed" | "cancelled" | "timeout";
+
+/**  L'agent propose de mémoriser des informations : carte dans le panneau. */
+export type AiMemoryEvent = {
+	requestId: string,
+	add: string[],
+	/**  Informations déjà mémorisées que les nouvelles remplacent. */
+	replace: string[],
+};
+
+/**  Tâche demandée par le front. */
+export type AiTask = 
+/**  Vérification depuis les préférences. */
+{ kind: "test" } | 
+/**  Question ou action sur le document ouvert. */
+{ kind: "chat"; doc: number; name: string; 
+/**  Taille des pages affichées (points). */
+pages: ([number, number])[]; 
+/**  Langue de l'interface (« fr », « en »). */
+lang: string; history: ChatTurn[]; question: string };
+
+/**  Appel d'outil par l'agent, pour montrer ce qu'il fait. */
+export type AiToolEvent = {
+	requestId: string,
+	/**  Nom sans le préfixe MCP (`get_page_text`…). */
+	name: string,
+	/**  Arguments, en JSON. */
+	input: string,
+};
+
 export type Annot = {
 	/**  Identifiant stable (`/NM` si présent, sinon généré). */
 	id: string,
@@ -165,6 +228,16 @@ export type CertInfo = {
 	rootSha256: string,
 };
 
+/**
+ *  Tour précédent de la conversation, renvoyé à chaque question (l'agent ne garde pas
+ *  de session).
+ */
+export type ChatTurn = {
+	/**  « user » ou « assistant ». */
+	role: string,
+	text: string,
+};
+
 export type CheckStyle = "check" | "cross" | "dot";
 
 export type ChoiceOption = {
@@ -172,6 +245,14 @@ export type ChoiceOption = {
 	value: string,
 	/**  Libellé affiché. */
 	label: string,
+};
+
+/**  Résultat de la détection, pour les préférences. */
+export type Detected = {
+	path: string | null,
+	version: string | null,
+	/**  Installation trouvée mais trop ancienne (options inconnues). */
+	outdated: OutdatedAgent | null,
 };
 
 export type DocInfo = {
@@ -329,6 +410,11 @@ export type OpenFilesEvent = {
 	paths: string[],
 };
 
+export type OutdatedAgent = {
+	path: string,
+	version: string | null,
+};
+
 export type OutlineItem = {
 	title: string,
 	/**  Page cible (index 0) si la destination est locale. */
@@ -456,6 +542,12 @@ export type Settings = {
 	highlightFields?: boolean,
 	/**  Documents signés pour lesquels l'avertissement avant modification est désactivé. */
 	signedOk?: string[],
+	/**  Agent du panneau IA (aucun : panneau masqué). */
+	aiAgent?: Agent,
+	/**  Chemin de l'agent saisi à la main ; vide : détection automatique. */
+	aiPath?: string,
+	/**  Modèle (ex. « sonnet ») ; vide : celui de l'agent. */
+	aiModel?: string,
 };
 
 export type SigStatus = 

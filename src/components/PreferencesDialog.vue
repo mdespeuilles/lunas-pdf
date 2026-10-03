@@ -7,6 +7,7 @@ import type { TrustedRoot } from "../bindings";
 import { commands, inTauri, unwrap } from "../lib/api";
 import { nativeTrafficLights } from "../lib/window";
 import { useTabs } from "../stores/tabs";
+import AiPrefs from "./AiPrefs.vue";
 import Modal from "./Modal.vue";
 import { ACCENTS, useSettings } from "../stores/settings";
 import { useUi } from "../stores/ui";
@@ -32,7 +33,7 @@ async function untrust(r: TrustedRoot) {
 </script>
 
 <template>
-  <Modal :title="t('prefs.title')" :close-label="t('prefs.close')" @close="ui.prefsOpen = false">
+  <Modal :title="t('prefs.title')" :close-label="t('prefs.close')" :width="520" @close="ui.prefsOpen = false">
     <div class="field">
       <span class="lbl" id="p-theme">{{ t("prefs.theme") }}</span>
       <div class="seg" role="radiogroup" aria-labelledby="p-theme">
@@ -79,6 +80,7 @@ async function untrust(r: TrustedRoot) {
         @change="settings.update({ authorName: ($event.target as HTMLInputElement).value.trim() })"
       />
     </div>
+    <AiPrefs />
     <label v-if="!nativeTrafficLights" class="field check">
       <input type="checkbox" class="sr-only" :checked="settings.settings.windowControls" @change="settings.update({ windowControls: ($event.target as HTMLInputElement).checked })" />
       <span class="cb" :class="{ on: settings.settings.windowControls }" aria-hidden="true">

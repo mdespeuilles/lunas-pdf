@@ -149,6 +149,22 @@ Légende : ✅ fait · 🟡 partiel ou non vérifié · ⬜ à faire
 - La taille « actuel » est celle d'un export sans recompression (pas celle du fichier sur le disque).
 - Export d'une partie des pages : document reconstruit (signets à plat, métadonnées et étiquettes de page non reprises).
 
+## Assistant IA ✅
+
+Voir [ia.md](ia.md).
+
+| Fonction | État | Notes |
+|---|---|---|
+| Panneau à droite (bouton ✦, Ctrl J), une conversation par onglet | ✅ | Suggestions, réponse au fil de l'eau, actions affichées, liens vers les pages, Arrêter |
+| Agent au choix dans les préférences : Claude Code, Codex, aucun | ✅ | Détection, chemin, modèle, test ; code repris de Lunas Mail |
+| Questions et résumés | ✅ | Texte du document en contexte (60 000 caractères), images des pages à la demande |
+| Remplir un formulaire interactif | ✅ | `fill_form_fields` ; essai réel sur `formulaire-acroform.pdf` |
+| Remplir un document sans formulaire : zones de texte, coches | ✅ | Texte positionné + image quadrillée ; essai réel de placement sur `texte-simple.pdf` |
+| Modifications appliquées tout de suite, annulables, non enregistrées | ✅ | Un pas d'annulation par appel d'outil |
+| Informations mémorisées pour les prochains remplissages | ✅ | Proposées par l'IA, acceptées une à une, gérées dans les préférences ; essai réel |
+
+Limites : Codex répond en texte seulement (pas d'outils) ; sous Windows, lancement de l'agent non testé.
+
 ## Dette et points ouverts
 
 - Zones de texte : caractères hors WinAnsi (CJK, cyrillique…) affichés « ? » dans l'apparence ; le texte exact reste dans `/Contents`. Prévoir l'intégration d'une police en sous-ensemble.

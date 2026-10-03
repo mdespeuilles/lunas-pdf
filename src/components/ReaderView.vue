@@ -3,6 +3,7 @@
 import { FileWarning, TriangleAlert, X } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import AiPanel from "./AiPanel.vue";
 import AnnotBar from "./AnnotBar.vue";
 import DocViewport from "./DocViewport.vue";
 import FormBanner from "./FormBanner.vue";
@@ -13,11 +14,13 @@ import Sidebar from "./Sidebar.vue";
 import Toolbar from "./Toolbar.vue";
 import UnlockCard from "./UnlockCard.vue";
 import { hasFormContent } from "../composables/form";
+import { useAi } from "../stores/ai";
 import { type DocTab, useTabs } from "../stores/tabs";
 
 const props = defineProps<{ tab: DocTab }>();
 const { t } = useI18n();
 const tabs = useTabs();
+const ai = useAi();
 const toolbar = ref<InstanceType<typeof Toolbar>>();
 const xfaDismissed = ref(false);
 
@@ -58,6 +61,7 @@ defineExpose({
         <Sidebar v-if="tab.sidebarOpen" :tab="tab" />
         <DocViewport :tab="tab" />
         <SignaturePanel v-if="tab.sigPanel && tab.signatures?.length" :tab="tab" />
+        <AiPanel v-else-if="tab.aiOpen && ai.enabled" :key="tab.key" :tab="tab" />
       </template>
       <UnlockCard v-else-if="tab.status === 'locked'" :key="tab.key" :tab="tab" />
       <div v-else-if="tab.status === 'error'" class="center">

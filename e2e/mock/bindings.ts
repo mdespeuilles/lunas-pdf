@@ -21,7 +21,7 @@ w.__TAURI_INTERNALS__ = {
   unregisterCallback: (id: number) => callbacks.delete(id),
 };
 const e2e = w.__LUNAS_PDF_E2E__ as {
-  pending?: string[]; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]>; fields?: Record<string, FormField[]>;
+  pending?: string[]; memory?: string[]; calls?: string[]; settings?: Partial<Settings>; saved?: Record<string, Annot[]>; fields?: Record<string, FormField[]>;
   /** Pages de chaque document : origine (« 3 », « blanche », « formulaire.pdf:1 ») et rotation. */
   pages?: Record<string, string[]>;
 };
@@ -511,7 +511,33 @@ export const commands = {
     e2e.pending = [];
     return p;
   },
+  // IA simulée : une réponse progressive, un appel d'outil qui remplit le champ « nom ».
+  async aiDetect(_agent: string) {
+    return ok({ path: "/usr/local/bin/claude", version: "2.1.0", outdated: null });
+  },
+  async aiRun(requestId: string, task: { kind: string; doc?: number }) {
+    if (task.kind !== "chat" || task.doc === undefined) return ok("OK");
+    const emit = (name: string, payload: unknown) => (aiListeners[name] ?? []).forEach((cb) => cb({ payload }));
+    emit("chunk", { requestId, delta: "Je remplis le formulaire…" });
+    emit("tool", { requestId, name: "fill_form_fields", input: JSON.stringify({ fields: [{ id: "nom", value: "Dupont" }] }) });
+    const r = await commands.applyAnnotations(task.doc, [{ op: "setField", id: "nom", value: ["Dupont"] }]);
+    if (r.status === "ok") emit("edited", { doc: task.doc, state: r.data });
+    emit("memory", { requestId, add: ["Nom : Dupont", "E-mail : dupont@example.com"], replace: [] });
+    await new Promise((res) => setTimeout(res, 30));
+    return ok("J’ai rempli le champ **Nom** ([page 2](lunas://page/2)).");
+  },
+  async aiCancel(_requestId: string) {},
+  async getAiMemory(): Promise<string[]> {
+    return [...(e2e.memory ?? [])];
+  },
+  async setAiMemory(facts: string[]) {
+    e2e.memory = [...new Set(facts.map((f) => f.trim()).filter(Boolean))];
+    return ok([...e2e.memory]);
+  },
 };
+
+type AiCb = (e: { payload: any }) => void;
+const aiListeners: Record<string, AiCb[]> = {};
 
 export const events = {
   openFilesEvent: {
@@ -523,4 +549,8 @@ export const events = {
   trustListsUpdatedEvent: {
     listen: async (_cb: unknown) => () => {},
   },
+  aiChunkEvent: { listen: async (cb: AiCb) => ((aiListeners.chunk ??= []).push(cb), () => {}) },
+  aiToolEvent: { listen: async (cb: AiCb) => ((aiListeners.tool ??= []).push(cb), () => {}) },
+  aiEditedEvent: { listen: async (cb: AiCb) => ((aiListeners.edited ??= []).push(cb), () => {}) },
+  aiMemoryEvent: { listen: async (cb: AiCb) => ((aiListeners.memory ??= []).push(cb), () => {}) },
 };

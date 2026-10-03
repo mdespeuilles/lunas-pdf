@@ -524,3 +524,46 @@ pub fn take_pending_files(pending: State<'_, PendingFiles>) -> Vec<String> {
 pub fn log_frontend_error(message: String) {
     eprintln!("[lunas-pdf] interface : {message}");
 }
+
+// --- IA ------------------------------------------------------------------------------------
+
+/// Installation de l'agent (préférences).
+#[tauri::command]
+#[specta::specta]
+pub async fn ai_detect(
+    ai: State<'_, crate::ai::AiService>,
+    agent: crate::ai::agent::Agent,
+) -> std::result::Result<crate::ai::Detected, crate::ai::AiError> {
+    Ok(ai.detect(agent).await)
+}
+
+/// Lance une demande ; le texte arrive par `AiChunkEvent`, le résultat complet à la fin.
+#[tauri::command]
+#[specta::specta]
+pub async fn ai_run(
+    ai: State<'_, crate::ai::AiService>,
+    request_id: String,
+    task: crate::ai::AiTask,
+) -> std::result::Result<String, crate::ai::AiError> {
+    ai.run(request_id, task).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn ai_cancel(ai: State<'_, crate::ai::AiService>, request_id: String) {
+    ai.cancel(&request_id);
+}
+
+/// Informations mémorisées pour remplir les documents (préférences, panneau IA).
+#[tauri::command]
+#[specta::specta]
+pub fn get_ai_memory(store: State<'_, Store>) -> Vec<String> {
+    store.memory()
+}
+
+/// Remplace les informations mémorisées (doublons et lignes vides retirés).
+#[tauri::command]
+#[specta::specta]
+pub fn set_ai_memory(store: State<'_, Store>, facts: Vec<String>) -> Result<Vec<String>> {
+    store.set_memory(facts).map_err(io)
+}

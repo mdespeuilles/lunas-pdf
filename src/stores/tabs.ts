@@ -62,6 +62,8 @@ export interface DocTab {
   formBannerHidden: boolean;
   /** Signatures numériques vérifiées (null : pas encore lues). */
   signatures: SignatureInfo[] | null;
+  /** Panneau IA ouvert (volet de droite). */
+  aiOpen: boolean;
   /** Panneau « Signature numérique » ouvert, signature mise en avant, bandeau masqué. */
   sigPanel: boolean;
   sigSelected: number;
@@ -118,6 +120,7 @@ export const useTabs = defineStore("tabs", () => {
       formFocus: null,
       formBannerHidden: false,
       signatures: null,
+      aiOpen: false,
       sigPanel: false,
       sigSelected: 0,
       sigBannerHidden: false,
@@ -299,6 +302,12 @@ export const useTabs = defineStore("tabs", () => {
     });
   }
 
+  /** État d'édition produit hors de l'interface (modifications de l'IA). */
+  function applyExternal(doc: number, st: EditState) {
+    const tab = tabs.value.find((t) => t.info?.id === doc);
+    if (tab) void enqueue(tab, async () => applyState(tab, st));
+  }
+
   function applyOps(tab: DocTab, ops: AnnotOp[]) {
     return editCall(tab, (doc) => commands.applyAnnotations(doc, ops));
   }
@@ -427,6 +436,7 @@ export const useTabs = defineStore("tabs", () => {
     loadSignatures,
     reloadAllSignatures,
     applyOps,
+    applyExternal,
     addAnnot,
     updateAnnot,
     removeAnnot,

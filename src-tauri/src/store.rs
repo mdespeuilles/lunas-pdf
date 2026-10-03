@@ -53,6 +53,12 @@ pub struct Settings {
     pub highlight_fields: bool,
     /// Documents signés pour lesquels l'avertissement avant modification est désactivé.
     pub signed_ok: Vec<String>,
+    /// Agent du panneau IA (aucun : panneau masqué).
+    pub ai_agent: crate::ai::agent::Agent,
+    /// Chemin de l'agent saisi à la main ; vide : détection automatique.
+    pub ai_path: String,
+    /// Modèle (ex. « sonnet ») ; vide : celui de l'agent.
+    pub ai_model: String,
 }
 
 impl Default for Settings {
@@ -67,6 +73,9 @@ impl Default for Settings {
             author_name: String::new(),
             highlight_fields: true,
             signed_ok: vec![],
+            ai_agent: crate::ai::agent::Agent::None,
+            ai_path: String::new(),
+            ai_model: String::new(),
         }
     }
 }
@@ -132,6 +141,23 @@ impl Store {
             settings: Mutex::new(settings),
             recents: Mutex::new(recents),
         }
+    }
+
+    /// Informations mémorisées pour remplir les documents avec l'IA (une par ligne, ex.
+    /// « Parent – E-mail : jean@exemple.fr »). Fichier séparé des préférences.
+    pub fn memory(&self) -> Vec<String> {
+        read_json(&self.config_dir.join("memory.json")).unwrap_or_default()
+    }
+
+    pub fn set_memory(&self, facts: Vec<String>) -> std::io::Result<Vec<String>> {
+        let mut out: Vec<String> = Vec::new();
+        for f in facts.into_iter().map(|f| f.trim().to_owned()).filter(|f| !f.is_empty()) {
+            if !out.contains(&f) {
+                out.push(f);
+            }
+        }
+        write_json_atomic(&self.config_dir.join("memory.json"), &out)?;
+        Ok(out)
     }
 
     fn trusted_dir(&self) -> PathBuf {
@@ -367,6 +393,25 @@ mod tests {
         assert_eq!(cur.theme, ThemePref::Dark);
         assert_eq!(cur.accent, "#3466f6");
         assert!(cur.window_controls);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn memory_is_deduplicated_and_persisted() {
+        let dir = std::env::temp_dir().join(format!("lunas-pdf-memory-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let s = Store::load(dir.join("cfg"), dir.join("cache"));
+        assert!(s.memory().is_empty());
+        let saved = s
+            .set_memory(vec![
+                " Nom : Dupont ".into(),
+                "".into(),
+                "Nom : Dupont".into(),
+                "E-mail : j@d.fr".into(),
+            ])
+            .unwrap();
+        assert_eq!(saved, ["Nom : Dupont", "E-mail : j@d.fr"]);
+        assert_eq!(Store::load(dir.join("cfg"), dir.join("cache")).memory(), saved);
         let _ = fs::remove_dir_all(&dir);
     }
 }

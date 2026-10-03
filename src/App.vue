@@ -21,6 +21,7 @@ import { appWindow, onFileDrop } from "./lib/window";
 import { openPaths } from "./composables/open";
 import { confirmQuit } from "./composables/save";
 import { useShortcuts } from "./composables/shortcuts";
+import { useAi } from "./stores/ai";
 import { useRecents } from "./stores/recents";
 import { useSettings } from "./stores/settings";
 import { useTabs } from "./stores/tabs";
@@ -61,6 +62,7 @@ onMounted(async () => {
     await events.openFilesEvent.listen((e) => openPaths(e.payload.paths));
     // Listes de confiance rafraîchies en arrière-plan : revérification des signatures.
     await events.trustListsUpdatedEvent.listen(() => void useTabs().reloadAllSignatures());
+    await useAi().init();
     const pending = await commands.takePendingFiles();
     if (pending.length) openPaths(pending);
   }

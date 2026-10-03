@@ -17,6 +17,9 @@ const DEFAULTS: Settings = {
   authorName: "",
   highlightFields: true,
   signedOk: [],
+  aiAgent: "none",
+  aiPath: "",
+  aiModel: "",
 };
 
 /** Accents proposés par le design (props de la planche). */
