@@ -6,7 +6,6 @@ mod protocol;
 mod store;
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 use lunas_pdf_core::Engine;
 use serde::{Deserialize, Serialize};
@@ -187,10 +186,7 @@ pub fn run() {
     // instance se fermerait sans rien afficher. LUNAS_PDF_NO_SINGLE_INSTANCE la désactive aussi.
     if !cfg!(debug_assertions) && std::env::var_os("LUNAS_PDF_NO_SINGLE_INSTANCE").is_none() {
         builder_app = builder_app.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-            let paths = file_args(argv.into_iter().skip(1), Path::new(&cwd));
-            if !paths.is_empty() {
-                let _ = OpenFilesEvent { paths }.emit(app);
-            }
+            commands::deliver_files(app, file_args(argv.into_iter().skip(1), Path::new(&cwd)));
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();
                 let _ = w.set_focus();
@@ -218,7 +214,7 @@ pub fn run() {
         // Mises à jour signées, publiées sur les versions GitHub du dépôt (voir docs/versions.md).
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .manage(PendingFiles(Mutex::new(initial)))
+        .manage(PendingFiles::new(initial))
         .invoke_handler(builder.invoke_handler())
         .register_asynchronous_uri_scheme_protocol("lunas-pdf", protocol::handle)
         .setup(move |app| {
@@ -246,10 +242,7 @@ pub fn run() {
                     .filter_map(|u| u.to_file_path().ok())
                     .map(|p| p.display().to_string())
                     .collect();
-                if !paths.is_empty() {
-                    app.state::<PendingFiles>().0.lock().unwrap().extend(paths.clone());
-                    let _ = OpenFilesEvent { paths }.emit(app);
-                }
+                commands::deliver_files(app, paths);
             }
             let _ = (app, event);
         });

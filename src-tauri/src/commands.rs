@@ -14,7 +14,38 @@ use crate::store::{RecentDoc, SavedSignature, Settings, Store, TrustedRoot, path
 type Result<T> = std::result::Result<T, Error>;
 
 /// Fichiers reçus en ligne de commande avant que l'interface soit prête.
-pub struct PendingFiles(pub Mutex<Vec<String>>);
+pub struct PendingFiles {
+    files: Mutex<Vec<String>>,
+    /// L'interface a réclamé les fichiers en attente : les suivants lui sont envoyés.
+    ready: std::sync::atomic::AtomicBool,
+}
+
+impl PendingFiles {
+    pub fn new(files: Vec<String>) -> Self {
+        PendingFiles {
+            files: Mutex::new(files),
+            ready: Default::default(),
+        }
+    }
+}
+
+/// Fichiers à ouvrir (Finder, association de fichiers, seconde instance) : mis de côté tant
+/// que l'interface n'est pas prête (au lancement par macOS, la demande arrive avant la fin de
+/// l'initialisation, événements compris), envoyés ensuite.
+pub fn deliver_files(app: &tauri::AppHandle, paths: Vec<String>) {
+    use std::sync::atomic::Ordering;
+    use tauri::Manager;
+    use tauri_specta::Event;
+    if paths.is_empty() {
+        return;
+    }
+    let pending = app.state::<PendingFiles>();
+    if pending.ready.load(Ordering::SeqCst) {
+        let _ = crate::OpenFilesEvent { paths }.emit(app);
+    } else {
+        pending.files.lock().unwrap().extend(paths);
+    }
+}
 
 const KEYRING_SERVICE: &str = "fr.lunas.feuillet";
 
@@ -514,7 +545,9 @@ pub fn system_locale() -> String {
 #[tauri::command]
 #[specta::specta]
 pub fn take_pending_files(pending: State<'_, PendingFiles>) -> Vec<String> {
-    std::mem::take(&mut *pending.0.lock().unwrap())
+    let mut files = pending.files.lock().unwrap();
+    pending.ready.store(true, std::sync::atomic::Ordering::SeqCst);
+    std::mem::take(&mut *files)
 }
 
 /// Erreurs JavaScript de l'interface, recopiées dans le terminal (diagnostic sous WebKitGTK,
