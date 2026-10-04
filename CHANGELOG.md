@@ -1,5 +1,9 @@
 # Lunas PDF changelog
 
+## 0.1.3 — 2026-10-04
+
+- Fixed missing translations in the app update messages, which now display correctly in your language.
+
 ## 0.1.2 — 2026-10-04
 
 - Fixed a crash when opening a PDF from Finder on macOS.
