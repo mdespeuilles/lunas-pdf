@@ -10,3 +10,5 @@ playwright-report/
 .DS_Store
 # Fixture lourd régénérable : python fixtures/scripts/gen_fixtures.py fixtures --only scan-lourd
 fixtures/scan-lourd.pdf
+# Vidéos de présentation (/brag), non versionnées
+brag-output*/
