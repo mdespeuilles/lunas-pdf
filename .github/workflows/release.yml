@@ -20,10 +20,12 @@ jobs:
       matrix:
         include:
           # Signature ad hoc (« - ») : l'app démarre ; sans Developer ID, macOS demande de lever
-          # la quarantaine au premier téléchargement.
+          # la quarantaine au premier téléchargement. Sans « hardened runtime » : avec lui, macOS
+          # refuse de charger libpdfium (signatures ad hoc sans Team ID commun) ; il ne sert qu'à
+          # la notarisation, à rétablir avec le Developer ID.
           - platform: macos-latest
             target: aarch64-apple-darwin
-            args: --target aarch64-apple-darwin --config '{"bundle":{"macOS":{"signingIdentity":"-"}}}'
+            args: --target aarch64-apple-darwin --config '{"bundle":{"macOS":{"signingIdentity":"-","hardenedRuntime":false}}}'
           - platform: ubuntu-22.04
             target: ""
             args: ""

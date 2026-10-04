@@ -142,6 +142,14 @@ fn pdfium_dir(app: &tauri::App) -> Option<PathBuf> {
         .map(PathBuf::from)
         .and_then(lib)
         .or_else(|| app.path().resource_dir().ok().map(|d| d.join("pdfium")).and_then(lib))
+        // macOS : embarquée en framework (Contents/Frameworks), signée avec l'identité de l'app.
+        .or_else(|| {
+            app.path()
+                .resource_dir()
+                .ok()
+                .and_then(|d| d.parent().map(|c| c.join("Frameworks")))
+                .and_then(lib)
+        })
         .or_else(|| lib(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("pdfium/lib")))
         .or_else(|| lib(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("pdfium/bin")))
 }

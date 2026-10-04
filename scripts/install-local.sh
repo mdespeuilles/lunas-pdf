@@ -30,6 +30,11 @@ case "$(uname -s)" in
         echo "Pas de certificat Developer ID dans le trousseau : signature ad hoc."
       fi
     fi
+    # Signature ad hoc : sans « hardened runtime », sinon macOS refuse de charger libpdfium
+    # (pas de Team ID commun). Avec un Developer ID, libpdfium est signée comme l'app.
+    if [[ -z "${APPLE_SIGNING_IDENTITY:-}" ]]; then
+      LOCAL='{"bundle":{"createUpdaterArtifacts":false,"macOS":{"signingIdentity":"-","hardenedRuntime":false}}}'
+    fi
     bun tauri build --config "$CONFIG" --config "$LOCAL" --bundles app
     app="$TARGET_DIR/macos/Lunas PDF.app"
     # Seulement l'app installée : une session `bun tauri dev` porte un autre chemin.

@@ -156,11 +156,13 @@ impl Engine {
     /// bibliothèque système est utilisée.
     pub fn start(pdfium_dir: Option<&Path>) -> Result<Engine> {
         let bindings = match pdfium_dir {
-            Some(dir) => Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(dir))
-                .or_else(|_| Pdfium::bind_to_system_library()),
-            None => Pdfium::bind_to_system_library(),
-        }
-        .map_err(|e| Error::Engine(format!("libpdfium introuvable : {e:?}")))?;
+            // Échec de la bibliothèque embarquée : c'est son erreur qui compte (signature,
+            // architecture…), pas celle de la bibliothèque système essayée ensuite.
+            Some(dir) => Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(dir)).or_else(|e| {
+                Pdfium::bind_to_system_library().map_err(|_| Error::Engine(format!("libpdfium ({}) : {e:?}", dir.display())))
+            }),
+            None => Pdfium::bind_to_system_library().map_err(|e| Error::Engine(format!("libpdfium introuvable : {e:?}"))),
+        }?;
         let (tx, rx) = channel();
         std::thread::Builder::new()
             .name("pdfium".into())
