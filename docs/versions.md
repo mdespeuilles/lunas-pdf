@@ -24,6 +24,18 @@ construit alors :
 macOS : signature ad hoc, pas encore de Developer ID ni de notarisation ; au premier
 téléchargement, macOS demande de lever la quarantaine.
 
+## Installer sa propre version
+
+```sh
+bun run install-local
+```
+
+`scripts/install-local.sh` (repris de Lunas Mail) construit la version de production sans
+fichiers de mise à jour et l'installe : `/Applications/Lunas PDF.app` sous macOS (signée si un
+certificat Developer ID est dans le trousseau, sinon ad hoc), AppImage dans `~/.local/bin`
+avec une entrée de lanceur associée aux PDF sous Linux. Même identifiant que `bun tauri dev` :
+mêmes préférences, récents et informations mémorisées.
+
 ## Mises à jour dans l'app
 
 `src/stores/updates.ts` : vérification au lancement puis toutes les 6 h (jamais en

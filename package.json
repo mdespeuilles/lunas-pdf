@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "tauri": "tauri",
     "pdfium": "bun scripts/fetch-pdfium.mjs",
-    "release": "bash scripts/release.sh"
+    "release": "bash scripts/release.sh",
+    "install-local": "bash scripts/install-local.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",
