@@ -1,5 +1,9 @@
 # Lunas PDF changelog
 
+## 0.1.2 — 2026-10-04
+
+- Fixed a crash when opening a PDF from Finder on macOS.
+
 ## 0.1.1 — 2026-10-04
 
 - Fixed an issue that prevented the app from launching on macOS.
