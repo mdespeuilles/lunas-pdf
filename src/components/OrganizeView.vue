@@ -297,6 +297,6 @@ const selCount = computed(() => active.value.orgSel.length);
 .invite .drop { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
 @media (max-width: 900px) { .invite { display: none; } }
 .mi { display: flex; align-items: center; width: 100%; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-size: 13px; color: var(--text); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mi:hover, .mi:focus-visible, .mi.on { background: var(--hover); outline: none; }
+.mi:hover, .mi:focus-visible, .mi.on { background: var(--hover); color: var(--text); outline: none; }
 .msep { height: 1px; background: var(--line); margin: 5px 4px; }
 </style>

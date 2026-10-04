@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Menu principal (☰ sur l'accueil, ⋯ dans la barre d'outils).
+// Menu principal (☰ sur l'accueil, ⋯ dans la barre d'outils). Sans raccourcis affichés : leur
+// notation diffère selon le système (Ctrl / ⌘).
 import { Menu, MoreHorizontal } from "lucide-vue-next";
 import { useI18n } from "vue-i18n";
 import Dropdown from "./Dropdown.vue";
@@ -33,30 +34,30 @@ const tabs = useTabs();
       </button>
     </template>
     <button class="mi" role="menuitem" @click="openFromDialog()">
-      <span class="ck" />{{ t("menu.open") }}<span class="kbd">Ctrl O</span>
+      {{ t("menu.open") }}
     </button>
     <template v-if="tabs.active?.status === 'ready'">
       <button class="mi" role="menuitem" :disabled="!tabs.active.dirty" @click="saveTab(tabs.active)">
-        <span class="ck" />{{ t("menu.save") }}<span class="kbd">Ctrl S</span>
+        {{ t("menu.save") }}
       </button>
       <button class="mi" role="menuitem" @click="saveTab(tabs.active, true)">
-        <span class="ck" />{{ t("menu.saveAs") }}<span class="kbd">Ctrl Maj S</span>
+        {{ t("menu.saveAs") }}
       </button>
       <button class="mi" role="menuitem" @click="ui.exportTab = tabs.active.key">
-        <span class="ck" />{{ t("menu.export") }}<span class="kbd">Ctrl Maj E</span>
+        {{ t("menu.export") }}
       </button>
       <button class="mi" role="menuitem" @click="printTab(tabs.active)">
-        <span class="ck" />{{ t("menu.print") }}<span class="kbd">Ctrl P</span>
+        {{ t("menu.print") }}
       </button>
     </template>
     <button v-if="tabs.active" class="mi" role="menuitem" @click="requestClose(tabs.active)">
-      <span class="ck" />{{ t("menu.closeTab") }}<span class="kbd">Ctrl W</span>
+      {{ t("menu.closeTab") }}
     </button>
     <div class="msep" />
     <button class="mi" role="menuitem" @click="ui.prefsOpen = true">
-      <span class="ck" />{{ t("menu.preferences") }}<span class="kbd">Ctrl ,</span>
+      {{ t("menu.preferences") }}
     </button>
-    <button class="mi" role="menuitem" @click="ui.aboutOpen = true"><span class="ck" />{{ t("menu.about") }}</button>
+    <button class="mi" role="menuitem" @click="ui.aboutOpen = true">{{ t("menu.about") }}</button>
   </Dropdown>
 </template>
 

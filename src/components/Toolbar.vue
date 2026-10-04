@@ -176,7 +176,7 @@ defineExpose({
 .zoomsel { display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px 0 10px; border-radius: 7px; background: var(--hover); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 500; border: 0; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 72px; justify-content: space-between; }
 .zoomsel:hover, .zoomsel.open { background: var(--press); }
 .fit { margin-left: 6px; }
-.mi.sel .ck { color: var(--accent-text); }
+.mi.sel:not(:hover):not(:focus-visible) .ck { color: var(--accent-text); }
 .off-soon .tb:disabled:not(.w) { opacity: .38; pointer-events: auto; }
 .off-soon .tb:disabled:hover { background: transparent; color: var(--text-2); }
 @media (max-width: 1180px) { .fit, .fit + .sep { display: none; } }

@@ -100,7 +100,10 @@ onBeforeUnmount(() => window.removeEventListener("pointerdown", onDown, true));
 .sl { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; }
 .sl span { font-size: 11.5px; color: var(--text-3); }
 .mi { display: flex; align-items: center; gap: 10px; width: 100%; height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-size: 13px; color: var(--text); }
-.mi:hover, .mi:focus-visible { background: var(--hover); outline: none; }
+/* Survol discret, comme les signatures au-dessus : texte et raccourci gardent leur couleur
+   (le style commun des menus les passe en blanc pour un fond d'accent). */
+.mi:hover, .mi:focus-visible { background: var(--hover); color: var(--text); outline: none; }
+.mi:hover .kbd, .mi:focus-visible .kbd { background: var(--hover); color: var(--text-2); box-shadow: inset 0 0 0 1px var(--line); }
 .mi .kbd { margin-left: auto; }
 .msep { height: 1px; background: var(--line); margin: 5px 4px; }
 </style>
