@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // Chaque clé de traduction écrite en toutes lettres dans le code (`t("a.b")`) existe en
 // français et en anglais. Les clés construites (`t(\`ai.suggestions.${s}\`)`) ne sont pas
 // vérifiées ici.
