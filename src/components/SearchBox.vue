@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Search, X } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type DocTab, useTabs } from "../stores/tabs";
+import { kbd } from "../i18n/keys";
 
 const props = defineProps<{ tab: DocTab }>();
 const { t } = useI18n();
@@ -73,7 +74,7 @@ defineExpose({
       @blur="focused = false"
       @keydown="onKey"
     />
-    <span v-if="!active" class="kbd">Ctrl F</span>
+    <span v-if="!active" class="kbd">{{ kbd("Ctrl F") }}</span>
     <template v-else>
       <span class="cnt" aria-live="polite">{{ count }}</span>
       <button class="sb" :aria-label="t('search.prev')" :title="t('search.prev')" :disabled="!s.hits.length" @mousedown.prevent @click="tabs.nextHit(tab, -1)">

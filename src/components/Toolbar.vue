@@ -15,6 +15,7 @@ import { toggleAnnotate } from "../composables/signed";
 import { useAi } from "../stores/ai";
 import { type DocTab, useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
+import { kbd } from "../i18n/keys";
 
 const props = defineProps<{ tab: DocTab; disabled?: boolean }>();
 const { t, locale } = useI18n();
@@ -92,15 +93,15 @@ defineExpose({
             <span class="ck"><Check v-if="tab.fit === 'page'" class="ic xs" /></span>{{ t("toolbar.fitPage") }}<span class="kbd">F</span>
           </button>
           <button class="mi" role="menuitem" @click="tabs.setZoom(tab, 1)">
-            <span class="ck" />{{ t("toolbar.actualSize") }}<span class="kbd">Ctrl 0</span>
+            <span class="ck" />{{ t("toolbar.actualSize") }}<span class="kbd">{{ kbd("Ctrl 0") }}</span>
           </button>
           <div class="msep" />
           <button v-for="z in ZOOM_PRESETS" :key="z" class="mi" role="menuitem" :class="{ on: !tab.fit && Math.abs(tab.zoom - z) < 0.001 }" @click="tabs.setZoom(tab, z)">
             <span class="ck" />{{ percent(z, locale as "fr" | "en") }}
           </button>
           <div class="msep" />
-          <button class="mi" role="menuitem" @click="tabs.zoomBy(tab, 1)"><span class="ck" />{{ t("toolbar.zoomInItem") }}<span class="kbd">Ctrl +</span></button>
-          <button class="mi" role="menuitem" @click="tabs.zoomBy(tab, -1)"><span class="ck" />{{ t("toolbar.zoomOutItem") }}<span class="kbd">Ctrl −</span></button>
+          <button class="mi" role="menuitem" @click="tabs.zoomBy(tab, 1)"><span class="ck" />{{ t("toolbar.zoomInItem") }}<span class="kbd">{{ kbd("Ctrl +") }}</span></button>
+          <button class="mi" role="menuitem" @click="tabs.zoomBy(tab, -1)"><span class="ck" />{{ t("toolbar.zoomOutItem") }}<span class="kbd">{{ kbd("Ctrl −") }}</span></button>
         </Dropdown>
         <button class="tb" :aria-label="t('toolbar.zoomIn')" :title="t('toolbar.zoomIn')" @click="tabs.zoomBy(tab, 1)">
           <ZoomIn class="ic" aria-hidden="true" />

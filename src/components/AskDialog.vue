@@ -6,6 +6,7 @@ import { computed, nextTick, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
+import { kbd } from "../i18n/keys";
 
 const { t } = useI18n();
 const ui = useUi();
@@ -66,7 +67,7 @@ function onKey(e: KeyboardEvent) {
         <template v-else-if="ask.kind === 'unsaved'">
           <button class="btn dng" @click="ask.resolve('discard')">{{ t("save.discard") }}</button>
           <button class="btn gh" @click="ask.resolve('cancel')">{{ t("save.cancel") }}</button>
-          <button ref="primary" class="btn pri" @click="ask.resolve('save')">{{ t("save.save") }}<span class="kbd">Ctrl S</span></button>
+          <button ref="primary" class="btn pri" @click="ask.resolve('save')">{{ t("save.save") }}<span class="kbd">{{ kbd("Ctrl S") }}</span></button>
         </template>
         <template v-else>
           <span class="grow" />

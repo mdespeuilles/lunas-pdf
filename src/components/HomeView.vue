@@ -11,6 +11,7 @@ import { useSettings } from "../stores/settings";
 import { useTabs } from "../stores/tabs";
 import { openFromDialog } from "../composables/open";
 import { relativeDate } from "../lib/format";
+import { kbd } from "../i18n/keys";
 
 defineProps<{ dragging: boolean }>();
 const { t, locale } = useI18n();
@@ -41,7 +42,7 @@ function open(r: RecentDoc) {
         <p>{{ t("home.dropHint") }}</p>
         <div class="actions">
           <button class="btn pri lg" @click="openFromDialog()">
-            <FolderOpen class="ic s" aria-hidden="true" />{{ t("home.openFile") }}<span class="kbd">Ctrl O</span>
+            <FolderOpen class="ic s" aria-hidden="true" />{{ t("home.openFile") }}<span class="kbd">{{ kbd("Ctrl O") }}</span>
           </button>
         </div>
       </section>

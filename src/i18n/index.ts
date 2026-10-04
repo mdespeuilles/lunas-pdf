@@ -2,6 +2,7 @@ import { createI18n } from "vue-i18n";
 import fr from "./fr";
 import en from "./en";
 import type { LanguagePref } from "../bindings";
+import { isMac, macMessages } from "./keys";
 
 export type Locale = "fr" | "en";
 
@@ -9,7 +10,8 @@ export const i18n = createI18n({
   legacy: false,
   locale: "fr",
   fallbackLocale: "fr",
-  messages: { fr, en },
+  // Raccourcis en notation macOS (⌘⇧S) sur Mac.
+  messages: isMac ? { fr: macMessages(fr), en: macMessages(en) } : { fr, en },
 });
 
 /** Langue effective : préférence explicite, sinon celle de l'OS (anglais hors français). */
