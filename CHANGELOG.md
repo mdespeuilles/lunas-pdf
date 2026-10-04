@@ -1,5 +1,9 @@
 # Lunas PDF changelog
 
+## 0.1.1 — 2026-10-04
+
+- Fixed an issue that prevented the app from launching on macOS.
+
 ## 0.1.0 — 2026-10-04
 
 - **New name and icon:** the app is now called Lunas PDF and has a new page-and-pencil icon.
@@ -21,5 +25,3 @@
 - **Window buttons:** macOS uses its native buttons on the left, and other platforms use flat buttons.
 - **Automatic updates:** the app now updates itself to new versions.
 - **Startup:** the app no longer runs without a window, and it prints a step-by-step startup log in the terminal.
-
-
