@@ -5,7 +5,6 @@ members = ["crates/lunas-pdf-core", "src-tauri"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-license = "MIT"
 
 [workspace.dependencies]
 pdfium-render = { version = "0.9.4", default-features = false, features = ["pdfium_7881", "image_latest", "thread_safe"] }

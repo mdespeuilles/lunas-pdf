@@ -3,7 +3,6 @@ name = "lunas-pdf-core"
 description = "Moteur PDF de Lunas PDF : lecture et rendu via PDFium (voir docs/ADR-001)"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
 
 [dependencies]
 pdfium-render.workspace = true
