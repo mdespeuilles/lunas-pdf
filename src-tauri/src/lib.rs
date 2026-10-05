@@ -1,5 +1,6 @@
 mod ai;
 mod commands;
+mod navigation;
 mod omarchy;
 mod print;
 mod protocol;
@@ -211,6 +212,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(navigation::guard())
         // Mises à jour signées, publiées sur les versions GitHub du dépôt (voir docs/versions.md).
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())

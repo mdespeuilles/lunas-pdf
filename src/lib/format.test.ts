@@ -31,3 +31,16 @@ describe("pourcentages et langue", () => {
     expect(resolveLocale("system", "de-DE")).toBe("en");
   });
 });
+
+import { externalUrl } from "./window";
+
+describe("liens externes", () => {
+  it("schémas autorisés, adresses sans schéma", () => {
+    expect(externalUrl("https://exemple.fr/a")).toBe("https://exemple.fr/a");
+    expect(externalUrl(" mailto:a@b.fr")).toBe("mailto:a@b.fr");
+    expect(externalUrl("www.mma.fr/contrat")).toBe("https://www.mma.fr/contrat");
+    expect(externalUrl("file:///etc/passwd")).toBeNull();
+    expect(externalUrl("javascript:alert(1)")).toBeNull();
+    expect(externalUrl("#page=3")).toBeNull();
+  });
+});

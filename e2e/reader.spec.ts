@@ -90,7 +90,7 @@ test.describe("Lecture", () => {
 
   test("texte sélectionnable et lien interne", async ({ page }) => {
     await expect(page.locator(".page[data-page='0'] .textLayer span").first()).toHaveText("Article ");
-    await page.locator(".page[data-page='0'] a.link").click();
+    await page.locator(".page[data-page='0'] a.link[href='#']").click();
     await expect(page.getByRole("textbox", { name: "Aller à la page (Ctrl G)" })).toHaveValue("9");
   });
 
@@ -194,4 +194,29 @@ test.describe("Accessibilité", () => {
     const shadow = await page.evaluate(() => getComputedStyle(document.activeElement!).boxShadow);
     expect(shadow).not.toBe("none");
   });
+});
+
+test("lien web : ouvert dans le navigateur, jamais dans la fenêtre", async ({ page }) => {
+  await page.addInitScript(() => {
+    const opened: string[] = [];
+    (window as unknown as Record<string, unknown>).__opened = opened;
+    window.open = ((url: string) => {
+      opened.push(url);
+      return null;
+    }) as typeof window.open;
+  });
+  await start(page, ["/docs/contrat.pdf"]);
+  const link = page.locator(".page[data-page='0'] a.link[href^='https']");
+  await expect(link).toHaveAttribute("href", "https://www.example.com/contrat");
+  await link.click();
+  await link.click({ button: "middle" });
+  await link.click({ modifiers: ["Control"] });
+  await expect.poll(() => page.evaluate(() => (window as any).__opened as string[])).toEqual([
+    "https://www.example.com/contrat",
+    "https://www.example.com/contrat",
+    "https://www.example.com/contrat",
+  ]);
+  // L'application est toujours là (aucune navigation).
+  expect(new URL(page.url()).host).toMatch(/localhost/);
+  await expect(page.getByRole("toolbar", { name: "contrat.pdf" })).toBeVisible();
 });

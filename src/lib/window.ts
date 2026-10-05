@@ -53,8 +53,18 @@ export async function pickPdfFiles(title: string): Promise<string[]> {
   return r ? (Array.isArray(r) ? r : [r]) : [];
 }
 
-export async function openUrl(url: string) {
-  if (!/^(https?|mailto):/i.test(url)) return;
+/** Adresse d'un lien à ouvrir dans le navigateur (« www.… » sans schéma : https), sinon null. */
+export function externalUrl(url: string): string | null {
+  const u = url.trim();
+  if (/^(https?|mailto):/i.test(u)) return u;
+  if (/^www\.[^\s/]+\.[a-z]{2,}/i.test(u)) return `https://${u}`;
+  return null;
+}
+
+/** Ouvre un lien dans le navigateur (ou la messagerie), jamais dans la fenêtre de l'application. */
+export async function openUrl(raw: string) {
+  const url = externalUrl(raw);
+  if (!url) return;
   if (inTauri) {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(url);

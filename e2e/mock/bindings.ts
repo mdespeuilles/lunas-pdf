@@ -455,7 +455,14 @@ export const commands = {
     return ok({ ...(await commands.openDocument(open.get(doc)!, "feuillet", false).then((r) => (r.status === "ok" ? r.data : null)))!, id: doc, path: p, name: p.split("/").pop()!, pages: geoms(ed) });
   },
   async getLinks(_doc: number, page: number): Res<LinkInfo[]> {
-    return ok(page === 0 ? [{ rect: { x: 72, y: 700, w: 200, h: 14 }, target: { type: "page", page: 8 } }] : []);
+    return ok(
+      page === 0
+        ? [
+            { rect: { x: 72, y: 700, w: 200, h: 14 }, target: { type: "page", page: 8 } },
+            { rect: { x: 72, y: 730, w: 200, h: 14 }, target: { type: "uri", uri: "https://www.example.com/contrat" } },
+          ]
+        : [],
+    );
   },
   async getPageText(_doc: number, page: number): Res<PageText> {
     return ok({ runs: runs(page) });

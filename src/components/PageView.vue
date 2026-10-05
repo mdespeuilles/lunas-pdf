@@ -139,6 +139,8 @@ function px(r: Rect) {
       :title="l.target.type === 'uri' ? l.target.uri : undefined"
       draggable="false"
       @click.prevent="emit('link', l)"
+      @auxclick.prevent="emit('link', l)"
+      @dragstart.prevent
     />
   </div>
 </template>
