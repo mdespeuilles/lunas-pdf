@@ -1,5 +1,11 @@
 # Lunas PDF changelog
 
+## 0.1.4 — 2026-10-05
+
+- Links in PDFs now always open in your default browser, instead of replacing the app window.
+- Keyboard shortcuts are shown in macOS notation (⌘⇧S) on Mac.
+- Simpler main menu without shortcut hints, and easier-to-read hover highlights in menus.
+
 ## 0.1.3 — 2026-10-04
 
 - Fixed missing translations in the app update messages, which now display correctly in your language.
